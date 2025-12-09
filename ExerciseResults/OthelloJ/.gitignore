@@ -1,0 +1,19 @@
+# Compiled class files
+*.class
+
+# JUnit standalone jar (downloaded separately)
+junit-platform-console-standalone.jar
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.project
+*.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+

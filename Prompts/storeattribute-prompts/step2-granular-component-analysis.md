@@ -1,0 +1,1 @@
+Great, now I want you to dig into each one of the components that you identified for this codebase, and perform a detailed, granular analysis for each one. Collate this more granular investigation back into the initial high level review you made. Do this for every component/subsystem/service you can identify.

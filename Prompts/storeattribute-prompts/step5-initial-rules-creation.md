@@ -1,0 +1,7 @@
+I would like you to read the following document on how to build good LLM Agent rules for a codebase. The document is focused on Claude Code's CLAUDE.md, but the same concepts should apply to Cursor, which we are working in. @writing-good-rules.md
+
+  
+
+I would like you to read the entire document and get an understanding of the findings and rules in it. Once you have done that, I want you to read the @ARCHITECTURE.md document, which was made in an earlier session. Using those two docs as a starting point, I want you to devise a plan for an analysis session for this code base. Your job will be to leverage the information in the writing-good-rules file to create suitable rules for this code base. This should involve looking through the files and inspecting them to devise appropriate rules. You can look at as many files as you need to, don't stop until you have a complete understanding of the codebase and enough information to create the rules for cursor.
+
+Once you have a plan for how you are going to perform a full codebase analysis for rule generation, you may begin. I want you to create the appropriate .cursor/rule files based on this analysis. Remember that all rules should be written with the guidance of the first writing-good-rules document.
