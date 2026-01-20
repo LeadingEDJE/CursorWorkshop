@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WarpMe - Starship Simulator</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation Bar -->
+        <header class="top-nav">
+            <div class="ship-info">
+                <span class="ship-name">USS ENDEAVOUR</span>
+                <span id="alert-indicator" class="alert-indicator normal">NORMAL ALERT</span>
+            </div>
+            <nav class="nav-controls">
+                <span class="app-title" aria-label="Application Title">Warp Me</span>
+                <button id="mute-btn" class="mute-btn" title="Toggle Sound">🔊</button>
+            </nav>
+        </header>
+
+        <!-- Station Tab Navigation -->
+        <nav class="tab-nav" role="tablist" aria-label="Bridge Stations">
+            <button role="tab"
+                class="tab-btn"
+                id="tab-tactical"
+                aria-selected="true"
+                aria-controls="panel-tactical"
+                tabindex="0">
+                <span class="btn-icon">◎</span> Tactical
+            </button>
+            <button role="tab"
+                class="tab-btn"
+                id="tab-weapons"
+                aria-selected="false"
+                aria-controls="panel-weapons"
+                tabindex="-1">
+                <span class="btn-icon">⚡</span> Weapons
+            </button>
+            <button role="tab"
+                class="tab-btn"
+                id="tab-helm"
+                aria-selected="false"
+                aria-controls="panel-helm"
+                tabindex="-1">
+                <span class="btn-icon">⎈</span> Helm
+            </button>
+            <button role="tab"
+                class="tab-btn"
+                id="tab-navigation"
+                aria-selected="false"
+                aria-controls="panel-navigation"
+                tabindex="-1">
+                <span class="btn-icon">✦</span> Navigation
+            </button>
+            <button role="tab"
+                class="tab-btn"
+                id="tab-comms"
+                aria-selected="false"
+                aria-controls="panel-comms"
+                tabindex="-1">
+                <span class="btn-icon">📡</span> Comms
+            </button>
+            <button role="tab"
+                class="tab-btn"
+                id="tab-engineering"
+                aria-selected="false"
+                aria-controls="panel-engineering"
+                tabindex="-1">
+                <span class="btn-icon">⚙</span> Engineering
+            </button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Tactical Station Panel -->
+            <section role="tabpanel" 
+                     id="panel-tactical" 
+                     aria-labelledby="tab-tactical"
+                     tabindex="0">
+                <!-- Content loaded dynamically by tactical.js -->
+            </section>
+
+            <!-- Weapons Station Panel -->
+            <section role="tabpanel" 
+                     id="panel-weapons" 
+                     aria-labelledby="tab-weapons"
+                     tabindex="0"
+                     hidden>
+                <!-- Content loaded dynamically by weapons.js -->
+            </section>
+
+            <!-- Helm Station Panel -->
+            <section role="tabpanel" 
+                     id="panel-helm" 
+                     aria-labelledby="tab-helm"
+                     tabindex="0"
+                     hidden>
+                <!-- Content loaded dynamically by helm.js -->
+            </section>
+
+            <!-- Navigation Station Panel -->
+            <section role="tabpanel" 
+                     id="panel-navigation" 
+                     aria-labelledby="tab-navigation"
+                     tabindex="0"
+                     hidden>
+                <!-- Content loaded dynamically by navigation.js -->
+            </section>
+
+            <!-- Communications Station Panel -->
+            <section role="tabpanel" 
+                     id="panel-comms" 
+                     aria-labelledby="tab-comms"
+                     tabindex="0"
+                     hidden>
+                <!-- Content loaded dynamically by comms.js -->
+            </section>
+
+            <!-- Engineering Station Panel -->
+            <section role="tabpanel" 
+                     id="panel-engineering" 
+                     aria-labelledby="tab-engineering"
+                     tabindex="0"
+                     hidden>
+                <!-- Content loaded dynamically by engineering.js -->
+            </section>
+        </main>
+    </div>
+
+    <!-- Main Application Script (ES Module) -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
