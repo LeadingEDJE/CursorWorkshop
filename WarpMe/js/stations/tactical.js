@@ -311,7 +311,8 @@ class TacticalStation {
             showHUD: true,
             showRadar: true,
             radarAngle: this.radarAngle,
-            scanRadius: this.scanRadius
+            scanRadius: this.scanRadius,
+            showShipWaypoints: true
         });
 
         // Update scan info periodically

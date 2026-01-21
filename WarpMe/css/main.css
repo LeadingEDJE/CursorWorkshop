@@ -246,6 +246,8 @@ p {
     text-transform: uppercase;
     cursor: pointer;
     overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
     isolation: isolate;
 }
@@ -1083,6 +1085,106 @@ input[type="range"]::-moz-range-thumb {
     display: none;
 }
 
+/* ===== COMMS STATION - FLEET LIST ===== */
+.fleet-list {
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.ship-item {
+    padding: var(--spacing-sm);
+    background: rgba(0, 20, 40, 0.5);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.ship-item:hover {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.4);
+}
+
+.ship-item.selected {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: var(--color-primary);
+    box-shadow: var(--glow-primary);
+}
+
+.ship-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.ship-name {
+    font-weight: 600;
+    color: var(--color-primary);
+    font-size: 12px;
+}
+
+.waypoint-indicator {
+    font-size: 14px;
+    color: var(--color-success);
+}
+
+.ship-item-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+
+/* ===== COMMS STATION - SELECTED SHIP INFO ===== */
+.selected-ship-info {
+    font-size: 12px;
+}
+
+.ship-detail {
+    margin-bottom: var(--spacing-md);
+}
+
+.waypoint-section {
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.waypoint-section h4 {
+    font-size: 11px;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-primary);
+}
+
+.waypoint-data {
+    font-size: 11px;
+}
+
+/* ===== COMMS STATION - COMMANDS ===== */
+.command-controls {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+/* ===== COMMS STATION - MAP CONTAINER ===== */
+.comms-map-container {
+    position: relative;
+}
+
+.comms-log {
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
 /* ===== ENGINEERING STATION ===== */
 .ship-diagram-panel {
     height: 100%;
@@ -1290,5 +1392,81 @@ input[type="range"]::-moz-range-thumb {
         flex: 1;
         min-width: 200px;
         margin-top: 0;
+    }
+}
+
+/* Tab navigation responsive styles */
+@media (max-width: 1400px) {
+    .tab-btn {
+        padding: calc(var(--spacing-sm) + 2px) var(--spacing-md);
+        min-width: 100px;
+        font-size: 13px;
+        letter-spacing: 1px;
+    }
+    
+    .tab-btn .btn-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 13px;
+        margin-right: var(--spacing-xs);
+    }
+    
+    .tab-btn::after {
+        right: 12px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+@media (max-width: 1000px) {
+    .tab-nav {
+        gap: var(--spacing-xs);
+        padding: var(--spacing-xs) var(--spacing-sm);
+        overflow-x: auto;
+        scrollbar-width: thin;
+    }
+    
+    .tab-btn {
+        padding: var(--spacing-sm) var(--spacing-sm);
+        min-width: 90px;
+        font-size: 12px;
+        letter-spacing: 0.8px;
+        flex-shrink: 0;
+    }
+    
+    .tab-btn .btn-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+        margin-right: var(--spacing-xs);
+    }
+    
+    .tab-btn::before {
+        width: 8px;
+    }
+    
+    .tab-btn::after {
+        right: 8px;
+        width: 16px;
+        height: 16px;
+    }
+    
+    .tab-btn[aria-selected="true"] {
+        box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.35), 0 0 8px rgba(0, 240, 255, 0.4);
+    }
+}
+
+@media (max-width: 768px) {
+    .tab-btn {
+        min-width: 80px;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+    
+    .tab-btn .btn-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 11px;
     }
 }

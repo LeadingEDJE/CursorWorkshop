@@ -114,8 +114,10 @@ class Simulation {
 
         switch (ship.faction) {
             case 'friendly':
-                // Friendly ships patrol near player
-                if (distToPlayer > 500) {
+                // Command waypoint takes priority over normal behavior
+                if (ship.commandWaypoint) {
+                    ship.aiState = 'followWaypoint';
+                } else if (distToPlayer > 500) {
                     ship.aiState = 'approach';
                     ship.target = 'player';
                 } else {
@@ -201,6 +203,23 @@ class Simulation {
                 targetX = ship.x + Math.cos(angle) * 500;
                 targetY = ship.y + Math.sin(angle) * 500;
                 ship.velocity = ship.maxVelocity * engineEffectiveness;
+                break;
+
+            case 'followWaypoint':
+                const wp = ship.commandWaypoint;
+                if (wp) {
+                    targetX = wp.x;
+                    targetY = wp.y;
+                    ship.velocity = ship.maxVelocity * 0.7 * engineEffectiveness;
+                    
+                    // Check arrival - clear waypoint so ship resumes normal behavior
+                    const dist = Math.hypot(wp.x - ship.x, wp.y - ship.y);
+                    if (dist < 30) {
+                        gameState.clearShipWaypoint(ship.id);
+                        gameState.addCommsMessage(ship.name.toUpperCase(), 'Waypoint reached. Resuming patrol.', 'info');
+                        // Next tick: updateNPCAI() will assign patrol/approach since commandWaypoint is null
+                    }
+                }
                 break;
         }
 

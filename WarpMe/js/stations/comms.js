@@ -1,16 +1,27 @@
 /**
  * Communications Station
- * Hailing, message log, and frequency management
+ * Fleet command interface with tactical map and waypoint assignment
  */
 
 import { gameState } from '../core/state.js';
+import { renderer } from '../core/renderer.js';
 import { audio } from '../core/audio.js';
 
 class CommsStation {
     constructor() {
         this.container = null;
+        this.canvas = null;
+        this.selectedShipId = null;
         this.selectedFrequency = 'all';
-        this.unreadCount = 0;
+        this.scale = 3; // Zoomed out for tactical view
+        this.isDragging = false;
+        this.dragMoved = false;
+        this.viewOffsetX = 0;
+        this.viewOffsetY = 0;
+        this.lastMouseX = 0;
+        this.lastMouseY = 0;
+        this.dragStartX = 0;
+        this.dragStartY = 0;
     }
 
     init(container) {
@@ -24,74 +35,85 @@ class CommsStation {
             <div class="station-layout comms-layout">
                 <div class="comms-sidebar">
                     <div class="panel">
-                        <h3>HAIL TARGET</h3>
-                        <select id="hail-target" class="select-input">
-                            <option value="">-- Select Target --</option>
-                        </select>
-                        <button id="hail-btn" class="btn btn-primary btn-large">
-                            <span class="btn-icon">📡</span> OPEN HAILING FREQUENCIES
-                        </button>
+                        <h3>FLEET STATUS</h3>
+                        <div id="fleet-list" class="fleet-list"></div>
                     </div>
                     <div class="panel">
-                        <h3>FREQUENCY FILTER</h3>
+                        <h3>SELECTED SHIP</h3>
+                        <div id="selected-ship-info" class="selected-ship-info">
+                            <p class="dim">Click a ship to select</p>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3>COMMANDS</h3>
+                        <div class="command-controls">
+                            <button id="hail-selected-btn" class="btn btn-primary" disabled>
+                                <span class="btn-icon">📡</span> HAIL
+                            </button>
+                            <button id="clear-waypoint-btn" class="btn btn-secondary" disabled>
+                                CLEAR WAYPOINT
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <h3>COMMUNICATIONS LOG</h3>
                         <div class="frequency-buttons">
                             <button class="btn btn-freq active" data-freq="all">ALL</button>
                             <button class="btn btn-freq" data-freq="hail">HAILS</button>
                             <button class="btn btn-freq" data-freq="alert">ALERTS</button>
                             <button class="btn btn-freq" data-freq="info">SYSTEM</button>
                         </div>
-                    </div>
-                    <div class="panel">
-                        <h3>QUICK MESSAGES</h3>
-                        <div class="quick-messages">
-                            <button class="btn btn-secondary btn-small" data-msg="Acknowledged.">
-                                ACKNOWLEDGE
-                            </button>
-                            <button class="btn btn-secondary btn-small" data-msg="Request assistance.">
-                                REQUEST HELP
-                            </button>
-                            <button class="btn btn-secondary btn-small" data-msg="Standing by.">
-                                STANDING BY
-                            </button>
-                            <button class="btn btn-secondary btn-small" data-msg="Breaking off engagement.">
-                                WITHDRAW
-                            </button>
-                        </div>
-                    </div>
-                    <div class="panel">
-                        <h3>BROADCAST</h3>
-                        <textarea id="broadcast-input" class="broadcast-input" 
-                                  placeholder="Enter message..." rows="3"></textarea>
-                        <button id="broadcast-btn" class="btn btn-primary">
-                            BROADCAST
-                        </button>
+                        <div id="comms-log" class="comms-log"></div>
                     </div>
                 </div>
                 <div class="comms-main">
-                    <div class="panel comms-log-panel">
-                        <h3>COMMUNICATIONS LOG <span id="unread-badge" class="badge hidden">0</span></h3>
-                        <div id="comms-log" class="comms-log"></div>
+                    <div class="canvas-container comms-map-container">
+                        <canvas id="comms-canvas"></canvas>
+                        <div class="map-legend">
+                            <span class="legend-item"><span class="legend-dot friendly"></span> Friendly</span>
+                            <span class="legend-item"><span class="legend-dot neutral"></span> Neutral</span>
+                            <span class="legend-item"><span class="legend-dot hostile"></span> Hostile</span>
+                            <span class="legend-item"><span class="legend-dot waypoint"></span> Waypoint</span>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
 
-        this.updateHailTargets();
-        this.updateCommsLog();
+        // Use requestAnimationFrame to ensure DOM is ready and container has dimensions
+        requestAnimationFrame(() => {
+            this.canvas = document.getElementById('comms-canvas');
+            if (this.canvas) {
+                renderer.init(this.canvas);
+                this.updateFleetList();
+                this.updateCommsLog();
+            }
+        });
     }
 
     setupEventListeners() {
-        // Hail button
-        document.getElementById('hail-btn').addEventListener('click', () => {
-            const target = document.getElementById('hail-target').value;
-            if (target) {
-                gameState.hailShip(target);
-                audio.playHail();
-            } else {
-                gameState.addCommsMessage('COMMS', 'Select a target to hail.', 'alert');
-                audio.playError();
-            }
-        });
+        // Hail selected ship button
+        const hailBtn = document.getElementById('hail-selected-btn');
+        if (hailBtn) {
+            hailBtn.addEventListener('click', () => {
+                if (this.selectedShipId && this.selectedShipId !== 'player') {
+                    gameState.hailShip(this.selectedShipId);
+                    audio.playHail();
+                }
+            });
+        }
+
+        // Clear waypoint button
+        const clearBtn = document.getElementById('clear-waypoint-btn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                if (this.selectedShipId) {
+                    gameState.clearShipWaypoint(this.selectedShipId);
+                    this.updateSelectedShipInfo();
+                    audio.playClick();
+                }
+            });
+        }
 
         // Frequency filter buttons
         document.querySelectorAll('.btn-freq').forEach(btn => {
@@ -104,35 +126,62 @@ class CommsStation {
             });
         });
 
-        // Quick messages
-        document.querySelectorAll('[data-msg]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const msg = btn.dataset.msg;
-                gameState.addCommsMessage('USS ENDEAVOUR', msg, 'normal');
-                audio.playBeep();
-            });
-        });
+        // Canvas interactions - wait for canvas to be ready
+        requestAnimationFrame(() => {
+            if (this.canvas) {
+                this.canvas.addEventListener('click', (e) => {
+                    if (!this.isDragging && !this.dragMoved) {
+                        this.handleCanvasClick(e);
+                    }
+                });
 
-        // Broadcast button
-        document.getElementById('broadcast-btn').addEventListener('click', () => {
-            const input = document.getElementById('broadcast-input');
-            const msg = input.value.trim();
-            if (msg) {
-                gameState.addCommsMessage('USS ENDEAVOUR', msg, 'normal');
-                input.value = '';
-                audio.playBeep();
+                this.canvas.addEventListener('mousedown', (e) => {
+                    if (e.button === 0) {
+                        this.isDragging = true;
+                        this.dragMoved = false;
+                        this.dragStartX = e.clientX;
+                        this.dragStartY = e.clientY;
+                        this.lastMouseX = e.clientX;
+                        this.lastMouseY = e.clientY;
+                    }
+                });
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    if (this.isDragging) {
+                        const dx = e.clientX - this.lastMouseX;
+                        const dy = e.clientY - this.lastMouseY;
+                        this.viewOffsetX -= dx * this.scale;
+                        this.viewOffsetY -= dy * this.scale;
+                        this.lastMouseX = e.clientX;
+                        this.lastMouseY = e.clientY;
+                        if (!this.dragMoved) {
+                            const totalMovement = Math.abs(e.clientX - this.dragStartX) + Math.abs(e.clientY - this.dragStartY);
+                            if (totalMovement > 3) this.dragMoved = true;
+                        }
+                    }
+                });
+
+                this.canvas.addEventListener('mouseup', () => {
+                    this.isDragging = false;
+                });
+
+                this.canvas.addEventListener('mouseleave', () => {
+                    this.isDragging = false;
+                });
+
+                // Mouse wheel zoom
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    if (e.deltaY > 0) {
+                        this.scale = Math.min(10, this.scale + 0.5);
+                    } else {
+                        this.scale = Math.max(1, this.scale - 0.5);
+                    }
+                });
             }
         });
 
-        // Broadcast enter key (shift+enter for newline)
-        document.getElementById('broadcast-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                document.getElementById('broadcast-btn').click();
-            }
-        });
-
-        // Listen for new messages
+        // State change listeners
         gameState.on('commsMessage', (msg) => {
             this.updateCommsLog();
             if (msg.type === 'hail') {
@@ -142,20 +191,212 @@ class CommsStation {
             }
         });
 
-        // Update targets when ships change
-        gameState.on('shipAdded', () => this.updateHailTargets());
-        gameState.on('shipDestroyed', () => this.updateHailTargets());
+        gameState.on('shipAdded', () => {
+            this.updateFleetList();
+        });
+
+        gameState.on('shipDestroyed', () => {
+            this.updateFleetList();
+            if (this.selectedShipId && !gameState.getShip(this.selectedShipId)) {
+                this.selectedShipId = null;
+                this.updateSelectedShipInfo();
+            }
+        });
+
+        gameState.on('shipWaypointSet', () => {
+            this.updateFleetList();
+            this.updateSelectedShipInfo();
+        });
+
+        gameState.on('shipWaypointCleared', () => {
+            this.updateFleetList();
+            this.updateSelectedShipInfo();
+        });
     }
 
-    updateHailTargets() {
-        const select = document.getElementById('hail-target');
-        if (!select) return;
+    handleCanvasClick(e) {
+        if (!this.canvas) return;
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const screenX = e.clientX - rect.left;
+        const screenY = e.clientY - rect.top;
+        
+        const centerX = gameState.playerShip.x + this.viewOffsetX;
+        const centerY = gameState.playerShip.y + this.viewOffsetY;
+        
+        const worldPos = renderer.screenToWorld(screenX, screenY, centerX, centerY, this.scale);
+        
+        // Check if click is on any ship
+        const clickedShip = this.findShipAtPosition(worldPos.x, worldPos.y);
+        
+        if (clickedShip) {
+            // Select the ship (any faction)
+            this.selectShip(clickedShip.id);
+            audio.playClick();
+        } else if (this.selectedShipId) {
+            // Set waypoint for selected ship (only if friendly)
+            const ship = gameState.getShip(this.selectedShipId);
+            if (ship && ship.faction === 'friendly') {
+                gameState.setShipWaypoint(this.selectedShipId, worldPos.x, worldPos.y);
+                audio.playBeep();
+            }
+        } else {
+            // Click on empty space with no selection - deselect
+            this.selectedShipId = null;
+            this.updateFleetList();
+            this.updateSelectedShipInfo();
+        }
+    }
 
-        select.innerHTML = '<option value="">-- Select Target --</option>' +
-            gameState.ships.map(ship => {
-                const name = ship.scanned ? ship.name : `Unknown (${ship.faction})`;
-                return `<option value="${ship.id}">${name}</option>`;
-            }).join('');
+    findShipAtPosition(x, y) {
+        // Check all ships (including player) for click detection
+        const allShips = [gameState.playerShip, ...gameState.ships];
+        
+        for (const ship of allShips) {
+            const dist = Math.hypot(ship.x - x, ship.y - y);
+            if (dist < ship.size + 10) { // Click tolerance
+                return ship;
+            }
+        }
+        return null;
+    }
+
+    selectShip(shipId) {
+        this.selectedShipId = shipId;
+        this.updateFleetList();
+        this.updateSelectedShipInfo();
+    }
+
+    updateFleetList() {
+        const list = document.getElementById('fleet-list');
+        if (!list) return;
+
+        const friendlyShips = gameState.ships.filter(ship => ship.faction === 'friendly');
+        
+        if (friendlyShips.length === 0) {
+            list.innerHTML = '<p class="dim">No friendly ships in sector</p>';
+            return;
+        }
+
+        list.innerHTML = friendlyShips.map(ship => {
+            const isSelected = ship.id === this.selectedShipId;
+            const hasWaypoint = ship.commandWaypoint !== null;
+            const selectedClass = isSelected ? 'selected' : '';
+            
+            return `
+                <div class="ship-item ${selectedClass}" data-ship-id="${ship.id}">
+                    <div class="ship-item-header">
+                        <span class="ship-name">${ship.name}</span>
+                        ${hasWaypoint ? '<span class="waypoint-indicator">📍</span>' : ''}
+                    </div>
+                    <div class="ship-item-details">
+                        <span>Hull: ${Math.round(ship.hull)}%</span>
+                        <span>Dist: ${Math.round(Math.hypot(ship.x - gameState.playerShip.x, ship.y - gameState.playerShip.y))} km</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Add click listeners to ship items
+        list.querySelectorAll('.ship-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const shipId = item.dataset.shipId;
+                this.selectShip(shipId);
+                audio.playClick();
+            });
+        });
+    }
+
+    updateSelectedShipInfo() {
+        const info = document.getElementById('selected-ship-info');
+        const clearBtn = document.getElementById('clear-waypoint-btn');
+        const hailBtn = document.getElementById('hail-selected-btn');
+        if (!info) return;
+
+        if (!this.selectedShipId) {
+            info.innerHTML = '<p class="dim">Click a ship to select</p>';
+            if (clearBtn) clearBtn.disabled = true;
+            if (hailBtn) hailBtn.disabled = true;
+            return;
+        }
+
+        const ship = gameState.getShip(this.selectedShipId);
+        if (!ship) {
+            this.selectedShipId = null;
+            info.innerHTML = '<p class="dim">Click a ship to select</p>';
+            if (clearBtn) clearBtn.disabled = true;
+            if (hailBtn) hailBtn.disabled = true;
+            return;
+        }
+
+        // Show ship details
+        const shipDetails = `
+            <div class="ship-detail">
+                <div class="stat-row">
+                    <span>Name:</span>
+                    <span>${ship.scanned ? ship.name : 'Unknown'}</span>
+                </div>
+                <div class="stat-row">
+                    <span>Faction:</span>
+                    <span class="faction-${ship.faction}">${ship.faction.toUpperCase()}</span>
+                </div>
+                <div class="stat-row">
+                    <span>Position:</span>
+                    <span>(${Math.round(ship.x)}, ${Math.round(ship.y)})</span>
+                </div>
+                <div class="stat-row">
+                    <span>Hull:</span>
+                    <span>${Math.round(ship.hull)}%</span>
+                </div>
+                <div class="stat-row">
+                    <span>Shields:</span>
+                    <span>${Math.round(ship.shieldStrength)}%</span>
+                </div>
+            </div>
+        `;
+
+        // Show waypoint section only for friendly ships
+        if (ship.faction === 'friendly') {
+            const waypointInfo = ship.commandWaypoint ? `
+                <div class="waypoint-data">
+                    <div class="stat-row">
+                        <span>Waypoint X:</span>
+                        <span>${Math.round(ship.commandWaypoint.x)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Waypoint Y:</span>
+                        <span>${Math.round(ship.commandWaypoint.y)}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Distance:</span>
+                        <span>${Math.round(Math.hypot(ship.commandWaypoint.x - ship.x, ship.commandWaypoint.y - ship.y))} km</span>
+                    </div>
+                </div>
+            ` : '<p class="dim">Click on map to set waypoint</p>';
+
+            info.innerHTML = shipDetails + `
+                <div class="waypoint-section">
+                    <h4>COMMAND WAYPOINT</h4>
+                    ${waypointInfo}
+                </div>
+            `;
+
+            if (clearBtn) {
+                clearBtn.disabled = !ship.commandWaypoint;
+            }
+            if (hailBtn) {
+                hailBtn.disabled = true; // Don't hail friendly ships from here
+            }
+        } else {
+            // Non-friendly ships - show hail option
+            info.innerHTML = shipDetails;
+            if (clearBtn) {
+                clearBtn.disabled = true;
+            }
+            if (hailBtn) {
+                hailBtn.disabled = false;
+            }
+        }
     }
 
     updateCommsLog() {
@@ -168,6 +409,9 @@ class CommsStation {
         if (this.selectedFrequency !== 'all') {
             messages = messages.filter(msg => msg.type === this.selectedFrequency);
         }
+
+        // Limit to last 10 messages for compact display
+        messages = messages.slice(0, 10);
 
         log.innerHTML = messages.map(msg => {
             const timeStr = this.formatTime(msg.timestamp);
@@ -190,23 +434,6 @@ class CommsStation {
 
         // Scroll to top (newest messages)
         log.scrollTop = 0;
-
-        // Update unread badge
-        this.updateUnreadBadge();
-    }
-
-    updateUnreadBadge() {
-        const badge = document.getElementById('unread-badge');
-        if (!badge) return;
-
-        const unread = gameState.commsLog.filter(m => !m.read).length;
-        
-        if (unread > 0) {
-            badge.textContent = unread;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
     }
 
     formatTime(gameTime) {
@@ -217,9 +444,25 @@ class CommsStation {
     }
 
     update(timestamp) {
-        // Periodically update hail targets (in case new ships appear)
+        // Update fleet list periodically
         if (Math.floor(timestamp / 1000) % 5 === 0) {
-            this.updateHailTargets();
+            this.updateFleetList();
+        }
+
+        // Render map
+        if (this.canvas && renderer.canvas) {
+            const centerX = gameState.playerShip.x + this.viewOffsetX;
+            const centerY = gameState.playerShip.y + this.viewOffsetY;
+
+            renderer.renderMap({
+                centerX: centerX,
+                centerY: centerY,
+                scale: this.scale,
+                showGrid: true,
+                showHUD: false,
+                selectedShipId: this.selectedShipId,
+                showShipWaypoints: true
+            });
         }
     }
 

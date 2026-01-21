@@ -337,6 +337,73 @@ class Renderer {
         this.ctx.fillText('WAYPOINT', pos.x, pos.y + 35);
     }
 
+    // Draw ship waypoint marker (with ship's faction color)
+    drawShipWaypoint(ship, waypoint, centerX, centerY, scale) {
+        const pos = this.worldToScreen(waypoint.x, waypoint.y, centerX, centerY, scale);
+        const time = Date.now() / 1000;
+        const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+
+        // Use friendly color for ship waypoints
+        const waypointColor = '#00ff88'; // Friendly green
+        const alpha = pulse;
+
+        // Outer ring
+        this.ctx.strokeStyle = `rgba(0, 255, 136, ${alpha})`;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, 15, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        // Inner diamond
+        this.ctx.fillStyle = `rgba(0, 255, 136, ${alpha * 0.5})`;
+        this.ctx.beginPath();
+        this.ctx.moveTo(pos.x, pos.y - 8);
+        this.ctx.lineTo(pos.x + 8, pos.y);
+        this.ctx.lineTo(pos.x, pos.y + 8);
+        this.ctx.lineTo(pos.x - 8, pos.y);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Ship name label
+        this.ctx.fillStyle = `rgba(0, 255, 136, 0.9)`;
+        this.ctx.font = '9px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(ship.name, pos.x, pos.y + 28);
+    }
+
+    // Draw line from ship to its waypoint
+    drawShipWaypointLine(ship, waypoint, centerX, centerY, scale) {
+        const shipPos = this.worldToScreen(ship.x, ship.y, centerX, centerY, scale);
+        const waypointPos = this.worldToScreen(waypoint.x, waypoint.y, centerX, centerY, scale);
+
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(0, 255, 136, 0.4)';
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([8, 4]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(shipPos.x, shipPos.y);
+        this.ctx.lineTo(waypointPos.x, waypointPos.y);
+        this.ctx.stroke();
+        this.ctx.restore();
+    }
+
+    // Draw selection ring around a ship
+    drawSelectionRing(ship, centerX, centerY, scale) {
+        const pos = this.worldToScreen(ship.x, ship.y, centerX, centerY, scale);
+        const size = ship.size / scale;
+        const time = Date.now() / 1000;
+        const pulse = Math.sin(time * 4) * 0.2 + 0.8;
+
+        this.ctx.save();
+        this.ctx.strokeStyle = `rgba(0, 240, 255, ${pulse})`;
+        this.ctx.lineWidth = 3;
+        this.ctx.setLineDash([8, 4]);
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, size + 15, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.restore();
+    }
+
     // Draw scan ring effect
     drawScanRing(ship, radius, centerX, centerY, scale) {
         const pos = this.worldToScreen(ship.x, ship.y, centerX, centerY, scale);
@@ -400,7 +467,9 @@ class Renderer {
             showRadar = false,
             radarAngle = 0,
             scanRadius = 0,
-            showWaypointLine = false
+            showWaypointLine = false,
+            selectedShipId = null,
+            showShipWaypoints = false
         } = options;
 
         this.clear();
@@ -426,6 +495,15 @@ class Renderer {
             this.drawWaypoint(gameState.waypoint, centerX, centerY, scale);
         }
 
+        // Draw ship waypoints and lines (before ships so lines are behind)
+        if (showShipWaypoints) {
+            gameState.ships.forEach(ship => {
+                if (ship.commandWaypoint) {
+                    this.drawShipWaypointLine(ship, ship.commandWaypoint, centerX, centerY, scale);
+                }
+            });
+        }
+
         // Draw phaser beams
         gameState.phaserBeams.forEach(beam => {
             this.drawPhaserBeam(beam, centerX, centerY, scale);
@@ -440,10 +518,24 @@ class Renderer {
         gameState.ships.forEach(ship => {
             const isTarget = ship.id === gameState.currentTarget;
             this.drawShip(ship, centerX, centerY, scale, false, isTarget);
+            
+            // Draw selection ring if this ship is selected
+            if (selectedShipId === ship.id) {
+                this.drawSelectionRing(ship, centerX, centerY, scale);
+            }
         });
 
         // Draw player ship
         this.drawShip(gameState.playerShip, centerX, centerY, scale, true, false);
+
+        // Draw ship waypoint markers (after ships so they're on top)
+        if (showShipWaypoints) {
+            gameState.ships.forEach(ship => {
+                if (ship.commandWaypoint) {
+                    this.drawShipWaypoint(ship, ship.commandWaypoint, centerX, centerY, scale);
+                }
+            });
+        }
 
         if (showHUD) {
             this.drawHUD(scale);

@@ -23,6 +23,7 @@ ADRs document important architectural decisions made during the project's develo
 | [0008](0008-standardized-station-interface.md) | Standardize Station Interface Pattern | Accepted |
 | [0009](0009-centralized-state-management.md) | Centralize State in Single GameState Object | Accepted |
 | [0010](0010-homing-torpedo-behavior.md) | Implement Homing Torpedo Behavior | Accepted |
+| [0011](0011-per-ship-command-waypoints.md) | Per-Ship Command Waypoints for Fleet Coordination | Accepted |
 
 ## Adding New ADRs
 

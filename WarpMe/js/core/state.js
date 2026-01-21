@@ -38,7 +38,9 @@ function createShip(config) {
         target: config.target || null,
         // Visual
         size: config.size || 20,
-        scanned: config.scanned || false
+        scanned: config.scanned || false,
+        // Command waypoint (for friendly ships)
+        commandWaypoint: config.commandWaypoint || null  // { x, y } or null
     };
 }
 
@@ -389,6 +391,32 @@ class GameState {
         const distance = this.getWaypointDistance();
         if (!distance || this.playerShip.velocity <= 0) return null;
         return distance / this.playerShip.velocity;
+    }
+
+    // Set waypoint for a specific ship
+    setShipWaypoint(shipId, x, y) {
+        const ship = this.getShip(shipId);
+        if (!ship) return false;
+        
+        // Only friendly ships can receive waypoints
+        if (ship.faction !== 'friendly') {
+            return false;
+        }
+        
+        ship.commandWaypoint = { x, y };
+        this.emit('shipWaypointSet', { shipId, waypoint: ship.commandWaypoint });
+        this.addCommsMessage('COMMS', `Waypoint assigned to ${ship.name}`, 'info');
+        return true;
+    }
+
+    // Clear waypoint for a specific ship
+    clearShipWaypoint(shipId) {
+        const ship = this.getShip(shipId);
+        if (!ship || !ship.commandWaypoint) return false;
+        
+        ship.commandWaypoint = null;
+        this.emit('shipWaypointCleared', { shipId });
+        return true;
     }
 }
 
