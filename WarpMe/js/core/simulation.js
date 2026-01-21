@@ -262,6 +262,43 @@ class Simulation {
         for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
             const proj = gameState.projectiles[i];
             
+            // Homing behavior for torpedoes with a target
+            if (proj.type === 'torpedo' && proj.targetId) {
+                const target = gameState.getShip(proj.targetId);
+                
+                if (target) {
+                    // Calculate angle to target
+                    const dx = target.x - proj.x;
+                    const dy = target.y - proj.y;
+                    const targetAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    
+                    // Normalize target angle to 0-360
+                    let normalizedTargetAngle = targetAngle;
+                    while (normalizedTargetAngle < 0) normalizedTargetAngle += 360;
+                    while (normalizedTargetAngle >= 360) normalizedTargetAngle -= 360;
+                    
+                    // Calculate angle difference
+                    let angleDiff = normalizedTargetAngle - proj.heading;
+                    
+                    // Normalize to -180 to 180 for shortest rotation
+                    while (angleDiff > 180) angleDiff -= 360;
+                    while (angleDiff < -180) angleDiff += 360;
+                    
+                    // Turn towards target with rate limit (6 degrees per frame)
+                    const turnRate = 6;
+                    if (Math.abs(angleDiff) < turnRate) {
+                        proj.heading = normalizedTargetAngle;
+                    } else {
+                        proj.heading += angleDiff > 0 ? turnRate : -turnRate;
+                    }
+                    
+                    // Normalize heading to 0-360
+                    while (proj.heading < 0) proj.heading += 360;
+                    while (proj.heading >= 360) proj.heading -= 360;
+                }
+                // If target is destroyed/invalid, torpedo continues on last heading
+            }
+            
             // Move projectile
             const radians = (proj.heading * Math.PI) / 180;
             proj.x += Math.cos(radians) * proj.velocity;

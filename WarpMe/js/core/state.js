@@ -54,7 +54,7 @@ function createProjectile(config) {
         damage: config.type === 'torpedo' ? 30 : 10,
         sourceId: config.sourceId,
         targetId: config.targetId || null,
-        lifetime: config.type === 'torpedo' ? 300 : 20, // frames
+        lifetime: config.type === 'torpedo' ? 400 : 20, // frames (400 = 20 seconds at 20Hz)
         size: config.type === 'torpedo' ? 8 : 3
     };
 }

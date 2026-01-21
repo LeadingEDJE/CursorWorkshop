@@ -320,7 +320,7 @@ class HelmStation {
         const input = document.getElementById('heading-input');
         const current = document.getElementById('current-heading');
         
-        if (needle) needle.style.transform = `rotate(${heading}deg)`;
+        if (needle) needle.style.transform = `translateX(-50%) translateY(-100%) rotate(${heading}deg)`;
         if (center) center.textContent = `${heading}°`;
         if (input) input.value = heading;
         if (current) current.textContent = `${heading}°`;
