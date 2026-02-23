@@ -1,0 +1,6 @@
+---
+globs: *.css
+alwaysApply: false
+---
+
+When working with CSS, favor class selectors over ID selectors. Avoid !important and keep related rules adjacent to each other. We do not support SCSS in this repository.

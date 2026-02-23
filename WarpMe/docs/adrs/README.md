@@ -24,6 +24,8 @@ ADRs document important architectural decisions made during the project's develo
 | [0009](0009-centralized-state-management.md) | Centralize State in Single GameState Object | Accepted |
 | [0010](0010-homing-torpedo-behavior.md) | Implement Homing Torpedo Behavior | Accepted |
 | [0011](0011-per-ship-command-waypoints.md) | Per-Ship Command Waypoints for Fleet Coordination | Accepted |
+| [0012](0012-weapons-and-ordnance-system.md) | Weapons and Ordnance System Overview | Accepted |
+| [0013](0013-nuke-ordnance-behavior.md) | Nuke Ordnance Behavior (Proximity Detonation and Splash Damage) | Accepted |
 
 ## Adding New ADRs
 

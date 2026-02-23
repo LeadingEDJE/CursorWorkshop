@@ -278,74 +278,111 @@ class Simulation {
 
     // Update projectiles
     updateProjectiles() {
-        for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
+        projectileLoop: for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
             const proj = gameState.projectiles[i];
-            
-            // Homing behavior for torpedoes with a target
-            if (proj.type === 'torpedo' && proj.targetId) {
+
+            // Homing behavior: use proj.turnRate; if > 0 and has target, turn towards it
+            if (proj.turnRate > 0 && proj.targetId) {
                 const target = gameState.getShip(proj.targetId);
-                
                 if (target) {
-                    // Calculate angle to target
                     const dx = target.x - proj.x;
                     const dy = target.y - proj.y;
                     const targetAngle = Math.atan2(dy, dx) * 180 / Math.PI;
-                    
-                    // Normalize target angle to 0-360
                     let normalizedTargetAngle = targetAngle;
                     while (normalizedTargetAngle < 0) normalizedTargetAngle += 360;
                     while (normalizedTargetAngle >= 360) normalizedTargetAngle -= 360;
-                    
-                    // Calculate angle difference
                     let angleDiff = normalizedTargetAngle - proj.heading;
-                    
-                    // Normalize to -180 to 180 for shortest rotation
                     while (angleDiff > 180) angleDiff -= 360;
                     while (angleDiff < -180) angleDiff += 360;
-                    
-                    // Turn towards target with rate limit (6 degrees per frame)
-                    const turnRate = 6;
+                    const turnRate = proj.turnRate;
                     if (Math.abs(angleDiff) < turnRate) {
                         proj.heading = normalizedTargetAngle;
                     } else {
                         proj.heading += angleDiff > 0 ? turnRate : -turnRate;
                     }
-                    
-                    // Normalize heading to 0-360
                     while (proj.heading < 0) proj.heading += 360;
                     while (proj.heading >= 360) proj.heading -= 360;
                 }
-                // If target is destroyed/invalid, torpedo continues on last heading
             }
-            
+
             // Move projectile
             const radians = (proj.heading * Math.PI) / 180;
             proj.x += Math.cos(radians) * proj.velocity;
             proj.y += Math.sin(radians) * proj.velocity;
-            
             proj.lifetime--;
 
-            // Check for collisions
-            let hit = false;
-            
-            // Check against ships
+            // Nuke: proximity detonation (near any ship except the one that launched it)
+            if (proj.proximityRadius > 0) {
+                const shipsToCheck = proj.sourceId === 'player'
+                    ? gameState.ships
+                    : [...gameState.ships.filter(s => s.id !== proj.sourceId), gameState.playerShip];
+                for (const ship of shipsToCheck) {
+                    const dist = Math.hypot(ship.x - proj.x, ship.y - proj.y);
+                    if (dist < proj.proximityRadius) {
+                        this.detonateProjectile(proj, i);
+                        continue projectileLoop;
+                    }
+                }
+            }
+
+            // Direct collision check
             const targets = proj.sourceId === 'player' ? gameState.ships : [gameState.playerShip];
-            
+            let hit = false;
             for (const target of targets) {
                 const dist = Math.hypot(target.x - proj.x, target.y - proj.y);
                 if (dist < target.size + proj.size) {
-                    gameState.damageShip(target, proj.damage);
-                    audio.playExplosion();
+                    if (proj.blastRadius > 0) {
+                        this.detonateProjectile(proj, i);
+                    } else {
+                        gameState.damageShip(target, proj.damage);
+                        audio.playExplosion();
+                        gameState.projectiles.splice(i, 1);
+                    }
                     hit = true;
                     break;
                 }
             }
 
-            // Remove if hit or expired
-            if (hit || proj.lifetime <= 0) {
+            if (hit) continue projectileLoop;
+
+            // Nuke lifetime expiry: detonate instead of vanishing
+            if (proj.lifetime <= 0 && proj.blastRadius > 0) {
+                this.detonateProjectile(proj, i);
+                continue projectileLoop;
+            }
+
+            if (proj.lifetime <= 0) {
                 gameState.projectiles.splice(i, 1);
             }
         }
+    }
+
+    // Detonate projectile (nukes): splash damage, explosion effect
+    detonateProjectile(proj, index) {
+        const x = proj.x;
+        const y = proj.y;
+        const blastRadius = proj.blastRadius;
+        const splashDamage = proj.splashDamage;
+        const directDamage = proj.damage;
+
+        const allShips = [...gameState.ships, gameState.playerShip];
+
+        for (const ship of allShips) {
+            const dist = Math.hypot(ship.x - x, ship.y - y);
+            if (dist >= blastRadius) continue;
+
+            const isDirectHit = dist < ship.size + proj.size;
+            const damage = isDirectHit ? directDamage : Math.max(0, splashDamage * (1 - dist / blastRadius));
+            if (damage > 0) {
+                gameState.damageShip(ship, damage);
+            }
+        }
+
+        const maxLifetime = 90;
+        gameState.explosions.push({ x, y, radius: blastRadius, lifetime: maxLifetime, maxLifetime });
+        gameState.emit('nukeDetonation', { x, y, radius: blastRadius });
+        audio.playNukeExplosion();
+        gameState.projectiles.splice(index, 1);
     }
 
     // Update phaser beam visuals

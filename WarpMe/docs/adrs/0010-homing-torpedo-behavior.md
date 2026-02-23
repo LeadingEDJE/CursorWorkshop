@@ -11,14 +11,15 @@ Key considerations:
 - Need realistic turn rate limits (not instant tracking)
 - Should continue on last heading if target is destroyed
 - Must balance gameplay (not too easy, not too hard)
+- We support multiple ordnance types: homing torpedo, dumb torpedo (no homing), and nuke (slight homing)
 
 ## Decision
-We will implement homing behavior for torpedoes that have a `targetId`. Torpedoes will gradually turn toward their target with a limited turn rate of 6 degrees per frame.
+We will implement homing behavior driven by a per-type `turnRate` in projectile config (in `state.js`). Only projectiles with `turnRate > 0` and a valid `targetId` will home; others (e.g. dumb torpedo) travel in a straight line.
 
 Implementation:
-- Torpedoes with `targetId` calculate angle to target each frame
-- Turn toward target at maximum rate of 6 degrees per frame
-- If target is destroyed, torpedo continues on last heading
+- Projectile configs define `turnRate` per type: homing torpedo 6°/frame, dumb torpedo 0, nuke 2°/frame
+- Projectiles with `turnRate > 0` and `targetId` calculate angle to target each frame and turn toward it at max turn rate
+- If target is destroyed, projectile continues on last heading
 - Turn rate creates realistic tracking behavior (not instant)
 
 ## Consequences
@@ -35,7 +36,8 @@ Implementation:
 - **Performance**: Slight performance cost for angle calculations per torpedo
 
 ### Mitigations
-- Turn rate (6°/frame) prevents instant tracking, maintains challenge
+- Turn rate (6°/frame for homing) prevents instant tracking, maintains challenge
+- Dumb torpedo uses `turnRate: 0` for straight-line, higher velocity trade-off
 - Torpedo lifetime (400 frames = 20 seconds) limits range
-- If target destroyed, torpedo continues straight (wasteful but realistic)
+- If target destroyed, projectile continues straight (wasteful but realistic)
 - Performance impact is minimal (simple math operations)

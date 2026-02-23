@@ -44,20 +44,61 @@ function createShip(config) {
     };
 }
 
+// Projectile type configs: velocity, damage, lifetime, size, turnRate, blastRadius, splashDamage, proximityRadius
+const PROJECTILE_CONFIGS = {
+    torpedo: {
+        velocity: 12,
+        damage: 30,
+        lifetime: 400,
+        size: 8,
+        turnRate: 6,
+        blastRadius: 0,
+        splashDamage: 0,
+        proximityRadius: 0
+    },
+    dumbTorpedo: {
+        velocity: 16,
+        damage: 25,
+        lifetime: 300,
+        size: 8,
+        turnRate: 0,
+        blastRadius: 0,
+        splashDamage: 0,
+        proximityRadius: 0
+    },
+    nuke: {
+        velocity: 8,
+        damage: 80,
+        lifetime: 300,
+        size: 12,
+        turnRate: 2,
+        blastRadius: 200,
+        splashDamage: 50,
+        proximityRadius: 40
+    }
+};
+
 // Projectile factory
 function createProjectile(config) {
+    const type = config.type || 'torpedo';
+    const cfg = PROJECTILE_CONFIGS[type] || PROJECTILE_CONFIGS.torpedo;
+
     return {
         id: crypto.randomUUID(),
-        type: config.type || 'phaser', // 'phaser', 'torpedo'
+        type,
         x: config.x,
         y: config.y,
         heading: config.heading,
-        velocity: config.type === 'torpedo' ? 12 : 50,
-        damage: config.type === 'torpedo' ? 30 : 10,
+        velocity: cfg.velocity,
+        damage: cfg.damage,
         sourceId: config.sourceId,
         targetId: config.targetId || null,
-        lifetime: config.type === 'torpedo' ? 400 : 20, // frames (400 = 20 seconds at 20Hz)
-        size: config.type === 'torpedo' ? 8 : 3
+        lifetime: cfg.lifetime,
+        size: cfg.size,
+        turnRate: cfg.turnRate,
+        blastRadius: cfg.blastRadius,
+        splashDamage: cfg.splashDamage,
+        proximityRadius: cfg.proximityRadius
     };
 }
 
@@ -91,6 +132,9 @@ class GameState {
 
         // Phaser beams (visual only, instant damage)
         this.phaserBeams = [];
+
+        // Explosions (visual effects for nuke detonations)
+        this.explosions = [];
 
         // Communication log
         this.commsLog = [];
@@ -206,10 +250,9 @@ class GameState {
             this.damageShip(target, damage);
             this.emit('weaponFired', { type: 'phaser', target });
             return true;
-        } else if (type === 'torpedo') {
-            // Torpedo is a projectile
+        } else if (type === 'torpedo' || type === 'dumbTorpedo' || type === 'nuke') {
             const projectile = createProjectile({
-                type: 'torpedo',
+                type,
                 x: ship.x,
                 y: ship.y,
                 heading: ship.heading,
@@ -217,8 +260,11 @@ class GameState {
                 targetId: targetId || this.currentTarget
             });
             projectile.damage *= effectiveness;
+            if (projectile.splashDamage > 0) {
+                projectile.splashDamage *= effectiveness;
+            }
             this.projectiles.push(projectile);
-            this.emit('weaponFired', { type: 'torpedo' });
+            this.emit('weaponFired', { type });
             return true;
         }
         return false;

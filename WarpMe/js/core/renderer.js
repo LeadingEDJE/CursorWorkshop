@@ -221,41 +221,101 @@ class Renderer {
         }
     }
 
-    // Draw a torpedo
+    // Draw a projectile (torpedo, dumbTorpedo, or nuke)
     drawTorpedo(projectile, centerX, centerY, scale) {
         const pos = this.worldToScreen(projectile.x, projectile.y, centerX, centerY, scale);
         const size = projectile.size / scale;
 
-        // Skip if off screen
-        if (pos.x < -20 || pos.x > this.width + 20 || 
+        if (pos.x < -20 || pos.x > this.width + 20 ||
             pos.y < -20 || pos.y > this.height + 20) {
             return;
         }
+
+        const config = {
+            torpedo: { color: '#ff6600', trail: 'rgba(255, 100, 0, 0.5)', glow: 15, trailLen: 4 },
+            dumbTorpedo: { color: '#00ccff', trail: 'rgba(0, 180, 255, 0.4)', glow: 8, trailLen: 2.5 },
+            nuke: { color: '#ff0044', trail: 'rgba(255, 0, 80, 0.6)', glow: 25, trailLen: 6 }
+        };
+        const cfg = config[projectile.type] || config.torpedo;
 
         this.ctx.save();
         this.ctx.translate(pos.x, pos.y);
         this.ctx.rotate((projectile.heading * Math.PI) / 180);
 
-        // Torpedo glow
-        this.ctx.shadowColor = '#ff6600';
-        this.ctx.shadowBlur = 15;
+        const pulse = projectile.type === 'nuke' ? Math.sin(Date.now() / 80) * 0.3 + 0.7 : 1;
 
-        // Torpedo body
-        this.ctx.fillStyle = '#ff6600';
+        this.ctx.shadowColor = cfg.color;
+        this.ctx.shadowBlur = cfg.glow * pulse;
+
+        this.ctx.fillStyle = cfg.color;
         this.ctx.beginPath();
         this.ctx.ellipse(0, 0, size * 1.5, size * 0.5, 0, 0, Math.PI * 2);
         this.ctx.fill();
 
-        // Trail
-        this.ctx.fillStyle = 'rgba(255, 100, 0, 0.5)';
+        this.ctx.fillStyle = cfg.trail;
         this.ctx.beginPath();
         this.ctx.moveTo(-size * 1.5, 0);
-        this.ctx.lineTo(-size * 4, -size * 0.3);
-        this.ctx.lineTo(-size * 4, size * 0.3);
+        this.ctx.lineTo(-size * cfg.trailLen, -size * 0.3);
+        this.ctx.lineTo(-size * cfg.trailLen, size * 0.3);
         this.ctx.closePath();
         this.ctx.fill();
 
         this.ctx.shadowBlur = 0;
+        this.ctx.restore();
+    }
+
+    // Draw nuke explosion effect (blast radius circle + expanding shockwave + flash)
+    drawExplosion(explosion, centerX, centerY, scale) {
+        const pos = this.worldToScreen(explosion.x, explosion.y, centerX, centerY, scale);
+        const radiusPx = explosion.radius / scale;
+        const maxLifetime = explosion.maxLifetime ?? 60;
+        const progress = 1 - explosion.lifetime / maxLifetime;
+
+        if (pos.x < -radiusPx * 2 || pos.x > this.width + radiusPx * 2 ||
+            pos.y < -radiusPx * 2 || pos.y > this.height + radiusPx * 2) {
+            return;
+        }
+
+        this.ctx.save();
+
+        // 1. Blast radius circle (full extent, fades over time) – clear area-of-effect
+        const blastAlpha = Math.min(0.35, (explosion.lifetime / maxLifetime) * 0.35);
+        this.ctx.strokeStyle = `rgba(255, 100, 50, ${blastAlpha})`;
+        this.ctx.lineWidth = 3;
+        this.ctx.setLineDash([8, 6]);
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, radiusPx, 0, Math.PI * 2);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+
+        this.ctx.fillStyle = `rgba(255, 80, 40, ${blastAlpha * 0.25})`;
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, radiusPx, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // 2. Expanding shockwave ring
+        const ringRadius = radiusPx * progress;
+        const ringAlpha = (1 - progress) * 0.85;
+        this.ctx.strokeStyle = `rgba(255, 180, 80, ${ringAlpha})`;
+        this.ctx.lineWidth = 6;
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, ringRadius, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        // 3. Inner flash (bright center that fades)
+        const flashAlpha = progress < 0.25 ? 1 - progress / 0.25 : 0;
+        const gradient = this.ctx.createRadialGradient(
+            pos.x, pos.y, 0,
+            pos.x, pos.y, ringRadius
+        );
+        gradient.addColorStop(0, `rgba(255, 255, 220, ${flashAlpha})`);
+        gradient.addColorStop(0.2, `rgba(255, 200, 100, ${(1 - progress) * 0.6})`);
+        gradient.addColorStop(1, 'rgba(255, 80, 0, 0)');
+        this.ctx.fillStyle = gradient;
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, ringRadius, 0, Math.PI * 2);
+        this.ctx.fill();
+
         this.ctx.restore();
     }
 
@@ -535,6 +595,16 @@ class Renderer {
                     this.drawShipWaypoint(ship, ship.commandWaypoint, centerX, centerY, scale);
                 }
             });
+        }
+
+        // Update and draw nuke explosions (on top for visibility)
+        for (let i = gameState.explosions.length - 1; i >= 0; i--) {
+            gameState.explosions[i].lifetime--;
+            if (gameState.explosions[i].lifetime <= 0) {
+                gameState.explosions.splice(i, 1);
+            } else {
+                this.drawExplosion(gameState.explosions[i], centerX, centerY, scale);
+            }
         }
 
         if (showHUD) {

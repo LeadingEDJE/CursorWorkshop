@@ -143,6 +143,20 @@ class AudioManager {
         this.playSweep(200, 50, 0.3, 'square', 0.3);
     }
 
+    // Nuke launch
+    playNukeLaunch() {
+        this.playSweep(80, 40, 0.4, 'square', 0.35);
+        this.playTone(60, 0.3, 'sine', 0.2);
+        setTimeout(() => this.playTone(80, 0.2, 'square', 0.15), 150);
+    }
+
+    // Nuke explosion
+    playNukeExplosion() {
+        this.createNoise(1.2, 0.6);
+        this.playSweep(150, 30, 0.6, 'square', 0.5);
+        setTimeout(() => this.playSweep(80, 20, 0.4, 'square', 0.3), 400);
+    }
+
     // Shield hit
     playShieldHit() {
         this.playSweep(300, 600, 0.1, 'sine', 0.3);

@@ -7,15 +7,26 @@ import { gameState } from '../core/state.js';
 import { renderer } from '../core/renderer.js';
 import { audio } from '../core/audio.js';
 
+const ORDNANCE_CONFIG = {
+    torpedo: { maxAmmo: 10, cooldown: 60, label: 'Homing', btnClass: 'btn-warning' },
+    dumbTorpedo: { maxAmmo: 8, cooldown: 45, label: 'Dumb', btnClass: 'btn-info' },
+    nuke: { maxAmmo: 6, cooldown: 120, label: 'Nuke', btnClass: 'btn-nuke' }
+};
+
 class WeaponsStation {
     constructor() {
         this.container = null;
         this.canvas = null;
         this.scale = 1.5;
         this.phaserCharge = 100;
-        this.torpedoCount = 10;
         this.phaserCooldown = 0;
+        this.selectedOrdnanceType = 'torpedo';
+        this.torpedoCount = 10;
+        this.dumbTorpedoCount = 8;
+        this.nukeCount = 6;
         this.torpedoCooldown = 0;
+        this.dumbTorpedoCooldown = 0;
+        this.nukeCooldown = 0;
     }
 
     init(container) {
@@ -58,20 +69,27 @@ class WeaponsStation {
                         </button>
                     </div>
                     <div class="panel">
-                        <h3>TORPEDOES</h3>
-                        <div class="torpedo-count">
-                            <span id="torpedo-count">10</span> / 10
+                        <h3>ORDNANCE</h3>
+                        <div class="weapon-type-selector" role="tablist">
+                            <button type="button" role="tab" class="weapon-type-btn active" data-type="torpedo" aria-selected="true">Homing</button>
+                            <button type="button" role="tab" class="weapon-type-btn" data-type="dumbTorpedo" aria-selected="false">Dumb</button>
+                            <button type="button" role="tab" class="weapon-type-btn" data-type="nuke" aria-selected="false">Nuke</button>
                         </div>
-                        <div class="torpedo-tubes">
-                            <div class="torpedo-tube" data-tube="1">●</div>
-                            <div class="torpedo-tube" data-tube="2">●</div>
-                            <div class="torpedo-tube" data-tube="3">●</div>
-                            <div class="torpedo-tube" data-tube="4">●</div>
-                            <div class="torpedo-tube" data-tube="5">●</div>
+                        <div class="ordnance-display">
+                            <div class="torpedo-count">
+                                <span id="ordnance-count">10</span> / <span id="ordnance-max">10</span>
+                            </div>
+                            <div class="torpedo-tubes">
+                                <div class="torpedo-tube" data-tube="1">●</div>
+                                <div class="torpedo-tube" data-tube="2">●</div>
+                                <div class="torpedo-tube" data-tube="3">●</div>
+                                <div class="torpedo-tube" data-tube="4">●</div>
+                                <div class="torpedo-tube" data-tube="5">●</div>
+                            </div>
+                            <button id="fire-ordnance" class="btn btn-warning btn-large" aria-label="Fire selected ordnance">
+                                <span class="btn-icon">◉</span> <span id="fire-ordnance-label">FIRE TORPEDO</span>
+                            </button>
                         </div>
-                        <button id="fire-torpedo" class="btn btn-warning btn-large">
-                            <span class="btn-icon">◉</span> FIRE TORPEDO
-                        </button>
                     </div>
                     <div class="panel">
                         <h3>WEAPON STATUS</h3>
@@ -94,6 +112,7 @@ class WeaponsStation {
         renderer.init(this.canvas);
         this.updateTargetSelect();
         this.updateTargetInfo();
+        this.updateOrdnanceDisplay();
     }
 
     setupEventListeners() {
@@ -102,9 +121,24 @@ class WeaponsStation {
             this.firePhaser();
         });
 
-        // Fire torpedo
-        document.getElementById('fire-torpedo').addEventListener('click', () => {
-            this.fireTorpedo();
+        // Fire ordnance
+        document.getElementById('fire-ordnance').addEventListener('click', () => {
+            this.fireOrdnance();
+        });
+
+        // Weapon type selector
+        document.querySelectorAll('.weapon-type-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.target.dataset.type;
+                if (type) {
+                    this.selectedOrdnanceType = type;
+                    document.querySelectorAll('.weapon-type-btn').forEach(b => {
+                        b.classList.toggle('active', b.dataset.type === type);
+                        b.setAttribute('aria-selected', b.dataset.type === type);
+                    });
+                    this.updateOrdnanceDisplay();
+                }
+            });
         });
 
         // Target select
@@ -184,18 +218,49 @@ class WeaponsStation {
         }
     }
 
-    fireTorpedo() {
-        if (this.torpedoCooldown > 0 || this.torpedoCount <= 0) {
+    fireOrdnance() {
+        const type = this.selectedOrdnanceType;
+        const cfg = ORDNANCE_CONFIG[type];
+        const ammo = this.getOrdnanceCount(type);
+        const cooldown = this.getOrdnanceCooldown(type);
+
+        if (cooldown > 0 || ammo <= 0) {
             audio.playError();
             return;
         }
 
-        if (gameState.fireWeapon('torpedo', gameState.currentTarget)) {
-            audio.playTorpedo();
-            this.torpedoCount--;
-            this.torpedoCooldown = 60; // 1 second cooldown
-            this.updateTorpedoDisplay();
+        if (gameState.fireWeapon(type, gameState.currentTarget)) {
+            if (type === 'nuke') {
+                audio.playNukeLaunch();
+            } else {
+                audio.playTorpedo();
+            }
+            this.decrementOrdnance(type);
+            this.setOrdnanceCooldown(type, cfg.cooldown);
+            this.updateOrdnanceDisplay();
         }
+    }
+
+    getOrdnanceCount(type) {
+        const counts = { torpedo: this.torpedoCount, dumbTorpedo: this.dumbTorpedoCount, nuke: this.nukeCount };
+        return counts[type] ?? this.torpedoCount;
+    }
+
+    getOrdnanceCooldown(type) {
+        const cooldowns = { torpedo: this.torpedoCooldown, dumbTorpedo: this.dumbTorpedoCooldown, nuke: this.nukeCooldown };
+        return cooldowns[type] ?? this.torpedoCooldown;
+    }
+
+    setOrdnanceCooldown(type, value) {
+        if (type === 'torpedo') this.torpedoCooldown = value;
+        else if (type === 'dumbTorpedo') this.dumbTorpedoCooldown = value;
+        else this.nukeCooldown = value;
+    }
+
+    decrementOrdnance(type) {
+        if (type === 'torpedo') this.torpedoCount--;
+        else if (type === 'dumbTorpedo') this.dumbTorpedoCount--;
+        else this.nukeCount--;
     }
 
     updateTargetSelect() {
@@ -256,7 +321,7 @@ class WeaponsStation {
                         </span>
                     </div>
                     <div class="stat-row">
-                        <span>Torpedo Range:</span>
+                        <span>Ordnance Range:</span>
                         <span class="${inTorpedoRange ? 'text-green' : 'text-red'}">
                             ${inTorpedoRange ? 'IN RANGE' : 'OUT OF RANGE'}
                         </span>
@@ -274,22 +339,32 @@ class WeaponsStation {
         return Math.round(angle);
     }
 
-    updateTorpedoDisplay() {
-        const countEl = document.getElementById('torpedo-count');
-        if (countEl) {
-            countEl.textContent = this.torpedoCount;
-        }
+    updateOrdnanceDisplay() {
+        const type = this.selectedOrdnanceType;
+        const cfg = ORDNANCE_CONFIG[type];
+        const ammo = this.getOrdnanceCount(type);
+
+        const countEl = document.getElementById('ordnance-count');
+        const maxEl = document.getElementById('ordnance-max');
+        if (countEl) countEl.textContent = ammo;
+        if (maxEl) maxEl.textContent = cfg.maxAmmo;
 
         const tubes = document.querySelectorAll('.torpedo-tube');
         tubes.forEach((tube, i) => {
-            if (i < this.torpedoCount) {
-                tube.classList.add('loaded');
-                tube.classList.remove('empty');
-            } else {
-                tube.classList.remove('loaded');
-                tube.classList.add('empty');
-            }
+            const loaded = i < ammo;
+            tube.classList.toggle('loaded', loaded);
+            tube.classList.toggle('empty', !loaded);
         });
+
+        const fireBtn = document.getElementById('fire-ordnance');
+        const fireLabel = document.getElementById('fire-ordnance-label');
+        if (fireBtn) {
+            fireBtn.className = `btn btn-large ${cfg.btnClass}`;
+            fireBtn.disabled = ammo <= 0 || this.getOrdnanceCooldown(type) > 0;
+        }
+        if (fireLabel) {
+            fireLabel.textContent = type === 'nuke' ? 'FIRE NUKE' : 'FIRE TORPEDO';
+        }
     }
 
     update(timestamp) {
@@ -301,6 +376,8 @@ class WeaponsStation {
         // Reduce cooldowns
         if (this.phaserCooldown > 0) this.phaserCooldown--;
         if (this.torpedoCooldown > 0) this.torpedoCooldown--;
+        if (this.dumbTorpedoCooldown > 0) this.dumbTorpedoCooldown--;
+        if (this.nukeCooldown > 0) this.nukeCooldown--;
 
         // Update UI
         const chargeEl = document.getElementById('phaser-charge');
@@ -312,6 +389,8 @@ class WeaponsStation {
         const powerEl = document.getElementById('weapon-power');
         if (healthEl) healthEl.textContent = `${Math.round(weaponSys.hp)}%`;
         if (powerEl) powerEl.textContent = `${Math.round(weaponSys.power)}%`;
+
+        this.updateOrdnanceDisplay();
 
         // Render view
         renderer.renderMap({
