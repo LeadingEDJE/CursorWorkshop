@@ -94,6 +94,7 @@ function createProjectile(config) {
         sourceId: config.sourceId,
         targetId: config.targetId || null,
         lifetime: cfg.lifetime,
+        initialLifetime: cfg.lifetime,
         size: cfg.size,
         turnRate: cfg.turnRate,
         blastRadius: cfg.blastRadius,
@@ -156,6 +157,10 @@ class GameState {
 
         // Repair cooldowns (subsystem name -> cooldown remaining)
         this.repairCooldowns = {};
+
+        // Autopilot
+        this.autopilot = false;
+        this.autopilotMode = 'cruise'; // 'cruise' | 'waypoint' | 'combat'
 
         // Event listeners
         this.listeners = new Map();
@@ -453,6 +458,35 @@ class GameState {
         this.emit('shipWaypointSet', { shipId, waypoint: ship.commandWaypoint });
         this.addCommsMessage('COMMS', `Waypoint assigned to ${ship.name}`, 'info');
         return true;
+    }
+
+    // Engage autopilot
+    engageAutopilot() {
+        if (this.autopilot) return;
+        if (this.playerShip.subsystems.engines.hp <= 0) {
+            this.addCommsMessage('HELM', 'Autopilot unavailable: engines offline.', 'alert');
+            return false;
+        }
+        this.autopilot = true;
+        this.emit('autopilotEngaged', { mode: this.autopilotMode });
+        this.addCommsMessage('HELM', 'Autopilot engaged.', 'info');
+        return true;
+    }
+
+    // Disengage autopilot
+    disengageAutopilot() {
+        if (!this.autopilot) return;
+        this.autopilot = false;
+        this.autopilotMode = 'cruise';
+        this.emit('autopilotDisengaged');
+        this.addCommsMessage('HELM', 'Autopilot disengaged.', 'info');
+    }
+
+    // Update autopilot behavioral mode
+    setAutopilotMode(mode) {
+        if (this.autopilotMode === mode) return;
+        this.autopilotMode = mode;
+        this.emit('autopilotModeChanged', { mode });
     }
 
     // Clear waypoint for a specific ship

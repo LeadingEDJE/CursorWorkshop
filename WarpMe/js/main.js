@@ -47,6 +47,8 @@ function init() {
     
     // Listen for state changes to update top nav
     setupStateListeners();
+
+    setupAutopilotGlobalControls();
     
     // Start with tactical station
     switchStation('tactical');
@@ -167,6 +169,43 @@ function setupStateListeners() {
     
     // Initial alert indicator
     updateAlertIndicator(gameState.alertLevel);
+
+    gameState.on('autopilotEngaged', updateHelmAutopilotTabBadge);
+    gameState.on('autopilotDisengaged', updateHelmAutopilotTabBadge);
+    gameState.on('autopilotModeChanged', updateHelmAutopilotTabBadge);
+    updateHelmAutopilotTabBadge();
+}
+
+function updateHelmAutopilotTabBadge() {
+    const badge = document.getElementById('helm-autopilot-badge');
+    if (!badge) return;
+
+    if (gameState.autopilot) {
+        badge.classList.remove('hidden');
+        badge.textContent = 'Auto';
+        const mode = gameState.autopilotMode || 'cruise';
+        badge.title = `Autopilot active (${mode})`;
+        badge.setAttribute('aria-hidden', 'false');
+    } else {
+        badge.classList.add('hidden');
+        badge.title = '';
+        badge.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function setupAutopilotGlobalControls() {
+    document.addEventListener('keydown', (e) => {
+        const tag = e.target && e.target.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.key !== 'p' && e.key !== 'P') return;
+        e.preventDefault();
+        if (gameState.autopilot) {
+            gameState.disengageAutopilot();
+        } else {
+            gameState.engageAutopilot();
+        }
+        audio.playClick();
+    });
 }
 
 function updateAlertIndicator(level) {

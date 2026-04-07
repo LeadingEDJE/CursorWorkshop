@@ -74,6 +74,9 @@ class Simulation {
     // Update player ship movement
     updatePlayerShip() {
         const ship = gameState.playerShip;
+
+        // Apply autopilot control (modifies heading/velocity before position integration)
+        this.updateAutopilot();
         
         // Engine effectiveness
         const engineEffectiveness = this.getSystemEffectiveness(ship, 'engines');
@@ -85,17 +88,104 @@ class Simulation {
         ship.x += Math.cos(radians) * effectiveVelocity;
         ship.y += Math.sin(radians) * effectiveVelocity;
 
-        // Auto-navigate to waypoint if set
-        if (gameState.waypoint && ship.velocity > 0) {
+        // Check waypoint arrival
+        if (gameState.waypoint) {
             const dx = gameState.waypoint.x - ship.x;
             const dy = gameState.waypoint.y - ship.y;
             const distance = Math.hypot(dx, dy);
             
             if (distance < 20) {
-                // Reached waypoint
                 gameState.addCommsMessage('NAVIGATION', 'Waypoint reached.', 'info');
                 gameState.clearWaypoint();
+                // Autopilot remains engaged; next tick will switch to cruise mode
             }
+        }
+    }
+
+    // Autopilot: runs each sim tick when autopilot is on, before position integration
+    updateAutopilot() {
+        if (!gameState.autopilot) return;
+
+        const ship = gameState.playerShip;
+        const engineEffectiveness = this.getSystemEffectiveness(ship, 'engines');
+
+        // Disengage if engines are destroyed
+        if (ship.subsystems.engines.hp <= 0) {
+            gameState.disengageAutopilot();
+            return;
+        }
+
+        // Find nearest hostile ship
+        let nearestHostile = null;
+        let nearestHostileDistance = Infinity;
+        gameState.ships.forEach(s => {
+            if (s.faction !== 'hostile') return;
+            const dist = Math.hypot(s.x - ship.x, s.y - ship.y);
+            if (dist < nearestHostileDistance) {
+                nearestHostileDistance = dist;
+                nearestHostile = s;
+            }
+        });
+
+        const COMBAT_RANGE = 1000;
+
+        if (nearestHostile && nearestHostileDistance < COMBAT_RANGE) {
+            // --- COMBAT MODE ---
+            gameState.setAutopilotMode('combat');
+
+            const hullRatio = ship.hull / ship.maxHull;
+            let targetX, targetY;
+
+            if (hullRatio > 0.5) {
+                // Healthy: approach nearest hostile
+                targetX = nearestHostile.x;
+                targetY = nearestHostile.y;
+            } else {
+                // Damaged: flee away from nearest hostile
+                const fleeAngle = Math.atan2(ship.y - nearestHostile.y, ship.x - nearestHostile.x);
+                targetX = ship.x + Math.cos(fleeAngle) * 500;
+                targetY = ship.y + Math.sin(fleeAngle) * 500;
+            }
+
+            this.steerAutopilotToward(ship, targetX, targetY, engineEffectiveness);
+            ship.velocity = ship.maxVelocity * engineEffectiveness;
+
+        } else if (gameState.waypoint) {
+            // --- WAYPOINT MODE ---
+            gameState.setAutopilotMode('waypoint');
+
+            const wp = gameState.waypoint;
+            const distance = Math.hypot(wp.x - ship.x, wp.y - ship.y);
+
+            this.steerAutopilotToward(ship, wp.x, wp.y, engineEffectiveness);
+
+            const cruiseSpeed = ship.maxVelocity * engineEffectiveness * 0.75;
+            const BRAKE_DISTANCE = 150;
+            ship.velocity = distance < BRAKE_DISTANCE
+                ? cruiseSpeed * (distance / BRAKE_DISTANCE)
+                : cruiseSpeed;
+
+        } else {
+            // --- CRUISE MODE ---
+            // Maintain current heading and velocity; nothing to do
+            gameState.setAutopilotMode('cruise');
+        }
+    }
+
+    // Gradually steer ship toward a world point, capped by turnRate
+    steerAutopilotToward(ship, targetX, targetY, engineEffectiveness) {
+        const targetAngle = Math.atan2(targetY - ship.y, targetX - ship.x) * 180 / Math.PI;
+        let angleDiff = targetAngle - ship.heading;
+
+        while (angleDiff > 180) angleDiff -= 360;
+        while (angleDiff < -180) angleDiff += 360;
+
+        const turnSpeed = ship.turnRate * engineEffectiveness;
+        if (Math.abs(angleDiff) <= turnSpeed) {
+            ship.heading = ((targetAngle % 360) + 360) % 360;
+        } else {
+            ship.heading += angleDiff > 0 ? turnSpeed : -turnSpeed;
+            ship.heading = ((ship.heading % 360) + 360) % 360;
         }
     }
 
@@ -328,11 +418,24 @@ class Simulation {
             // Direct collision check
             const targets = proj.sourceId === 'player' ? gameState.ships : [gameState.playerShip];
             let hit = false;
+            const ticksPerSecond = 1000 / this.tickLength;
+            const minAgeTicksForPlayerDetonate = Math.ceil(ticksPerSecond);
+
             for (const target of targets) {
                 const dist = Math.hypot(target.x - proj.x, target.y - proj.y);
                 if (dist < target.size + proj.size) {
+                    const isPlayerHit = target === gameState.playerShip;
+                    const ageTicks = (proj.initialLifetime ?? proj.lifetime) - proj.lifetime;
+
                     if (proj.blastRadius > 0) {
-                        this.detonateProjectile(proj, i);
+                        const mayDetonateOnPlayer = !isPlayerHit || ageTicks > minAgeTicksForPlayerDetonate;
+                        if (mayDetonateOnPlayer) {
+                            this.detonateProjectile(proj, i);
+                        } else {
+                            gameState.damageShip(target, proj.damage);
+                            audio.playExplosion();
+                            gameState.projectiles.splice(i, 1);
+                        }
                     } else {
                         gameState.damageShip(target, proj.damage);
                         audio.playExplosion();

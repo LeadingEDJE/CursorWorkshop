@@ -18,7 +18,7 @@ We will centralize weapon firing and damage in `gameState.fireWeapon()` (state.j
 Responsibilities:
 - **State (state.js)**: `fireWeapon(type, targetId)`, range checks for phasers (500), damage application, projectile creation, `PROJECTILE_CONFIGS`, `currentTarget`, `phaserBeams`, `projectiles`
 - **Weapons station (weapons.js)**: Target select/display, canvas click targeting, phaser charge and cooldown, ordnance ammo and per-type cooldowns (`ORDNANCE_CONFIG`), firing buttons that gate on ammo/cooldown then call `gameState.fireWeapon()`
-- **Simulation (simulation.js)**: Projectile movement, homing (turnRate), collision and nuke detonation, phaser beam lifetime
+- **Simulation (simulation.js)**: Projectile movement, homing (turnRate), collision and nuke detonation (including player-only rule: blast ordnance detonates on player only after >1s active; see ADR-0013), phaser beam lifetime
 - **Renderer (renderer.js)**: Drawing phaser beams and projectiles (torpedo, dumbTorpedo, nuke)
 
 Phasers:

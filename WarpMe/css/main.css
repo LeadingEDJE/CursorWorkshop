@@ -409,6 +409,10 @@ p {
     grid-template-columns: 1fr 350px;
 }
 
+.engineering-main {
+    min-height: 0;
+}
+
 /* ===== PANELS ===== */
 .panel {
     background: var(--bg-panel);
@@ -770,6 +774,92 @@ input[type="range"]::-moz-range-thumb {
     border-bottom: none;
 }
 
+/* ===== TARGET STATUS (Tactical Sidebar) ===== */
+.target-status {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid rgba(0, 240, 255, 0.2);
+    font-size: 12px;
+}
+
+.target-status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: 5px;
+}
+
+.target-status-label {
+    width: 46px;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.target-status-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+.target-status-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.2s ease, background-color 0.3s ease;
+}
+
+.target-status-fill.shield-fill {
+    background: linear-gradient(90deg, rgba(80, 180, 255, 0.9), rgba(120, 220, 255, 0.9));
+}
+
+.target-status-fill.shield-offline {
+    background: rgba(80, 80, 100, 0.4);
+}
+
+.target-status-value {
+    width: 36px;
+    flex-shrink: 0;
+    text-align: right;
+    color: var(--text-primary);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.target-status-value.dim {
+    color: var(--text-secondary);
+}
+
+.target-status-condition {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.target-status-condition.condition-nominal {
+    color: var(--color-success);
+}
+
+.target-status-condition.condition-warning {
+    color: var(--color-warning);
+}
+
+.target-status-condition.condition-critical {
+    color: var(--color-danger);
+}
+
+.target-status-unknown {
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 /* ===== FACTION COLORS ===== */
 .faction-friendly {
     color: var(--color-friendly);
@@ -940,6 +1030,62 @@ input[type="range"]::-moz-range-thumb {
     flex-direction: column;
     gap: var(--spacing-md);
     overflow-y: auto;
+}
+
+.helm-autopilot-panel .autopilot-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin: var(--spacing-sm) 0;
+}
+
+.helm-autopilot-panel .autopilot-status {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+}
+
+.helm-autopilot-panel .autopilot-status--on {
+    color: var(--color-primary);
+    text-shadow: var(--glow-primary);
+}
+
+.helm-autopilot-panel .autopilot-mode {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.helm-autopilot-panel .autopilot-hint {
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.helm-autopilot-panel .autopilot-hint kbd {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 240, 255, 0.35);
+    background: rgba(0, 20, 40, 0.85);
+    font-size: 10px;
+    font-family: inherit;
+}
+
+.helm-manual-controls.helm-controls-autopilot-active {
+    opacity: 0.55;
+    transition: opacity var(--transition-fast);
+}
+
+.tab-autopilot-badge {
+    margin-left: var(--spacing-xs);
+    background: linear-gradient(180deg, rgba(0, 240, 255, 0.35), rgba(0, 120, 160, 0.5));
+    border: 1px solid rgba(0, 240, 255, 0.55);
+    color: var(--color-primary);
+    font-weight: 700;
+    flex-shrink: 0;
 }
 
 .helm-panel {
@@ -1356,17 +1502,21 @@ input[type="range"]::-moz-range-thumb {
     flex-direction: column;
 }
 
+.ship-diagram-panel > h3 {
+    flex-shrink: 0;
+}
+
 .ship-diagram {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 200px;
+    min-height: 280px;
 }
 
 .ship-svg {
     width: 100%;
-    max-width: 400px;
+    max-width: 560px;
     height: auto;
 }
 
@@ -1380,13 +1530,14 @@ input[type="range"]::-moz-range-thumb {
     transition: fill var(--transition-normal);
 }
 
-.hull-status,
-.shield-status {
-    margin-top: var(--spacing-md);
+.ship-diagram-panel .hull-status,
+.ship-diagram-panel .shield-status {
+    flex-shrink: 0;
+    margin-top: var(--spacing-sm);
 }
 
-.hull-status h4,
-.shield-status h4 {
+.ship-diagram-panel .hull-status h4,
+.ship-diagram-panel .shield-status h4 {
     font-size: 11px;
     color: var(--text-secondary);
     margin-bottom: var(--spacing-xs);

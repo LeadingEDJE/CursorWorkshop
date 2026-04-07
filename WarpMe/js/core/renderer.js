@@ -13,6 +13,8 @@ class Renderer {
         this.height = 0;
         this.stars = [];
         this.starsGenerated = false;
+        this.particles = [];
+        this.shipScarData = new Map();
     }
 
     // Initialize with a canvas element
@@ -51,6 +53,158 @@ class Renderer {
             });
         }
         this.starsGenerated = true;
+    }
+
+    // Deterministic seeded pseudo-random for stable per-ship scar geometry (0..1)
+    seededRandom(seed) {
+        const x = Math.sin(seed * 9301 + 49297) * 233280;
+        return x - Math.floor(x);
+    }
+
+    // Generate and cache scar mark geometry for a ship (keyed by ship.id)
+    getShipScarData(ship) {
+        if (!this.shipScarData.has(ship.id)) {
+            const hash = ship.id.split('').reduce((acc, ch) => acc * 31 + ch.codePointAt(0), 1);
+            const count = 4 + Math.floor(this.seededRandom(hash) * 4);
+            const scars = [];
+            for (let i = 0; i < count; i++) {
+                scars.push({
+                    angle:      this.seededRandom(hash + i * 7)  * Math.PI * 2,
+                    radius:     0.1 + this.seededRandom(hash + i * 13) * 0.55,
+                    length:     0.12 + this.seededRandom(hash + i * 17) * 0.22,
+                    perpAngle:  this.seededRandom(hash + i * 19) * Math.PI * 2
+                });
+            }
+            this.shipScarData.set(ship.id, scars);
+        }
+        return this.shipScarData.get(ship.id);
+    }
+
+    // Hull integrity color: green (full) → yellow (mid) → red (critical)
+    getHullColor(hullRatio) {
+        let r, g;
+        if (hullRatio > 0.6) {
+            r = Math.round(255 * (1 - hullRatio) / 0.4);
+            g = 255;
+        } else {
+            r = 255;
+            g = Math.round(255 * hullRatio / 0.6);
+        }
+        return `rgb(${r}, ${g}, 0)`;
+    }
+
+    // Add a single particle; opts = { color, size, layer }. Caps total at 600.
+    emitParticle(x, y, vx, vy, lifetime, opts) {
+        this.particles.push({ x, y, vx, vy, lifetime, maxLifetime: lifetime, ...opts });
+        if (this.particles.length > 600) {
+            this.particles.splice(0, this.particles.length - 600);
+        }
+    }
+
+    // Emit smoke (hull < 70%) and fire (hull < 35%) particles for a damaged ship each frame
+    emitDamageParticles(ship) {
+        const hullRatio = ship.hull / Math.max(1, ship.maxHull);
+        if (hullRatio >= 0.7) return;
+
+        const rad = (ship.heading * Math.PI) / 180;
+        const spread = ship.size * 0.4;
+        const emitX = ship.x - Math.cos(rad) * ship.size * 0.3 + (Math.random() - 0.5) * spread;
+        const emitY = ship.y - Math.sin(rad) * ship.size * 0.3 + (Math.random() - 0.5) * spread;
+        const severity = 1 - hullRatio / 0.7;
+
+        // Smoke
+        if (Math.random() < severity * 0.45) {
+            const gray = 70 + Math.floor(Math.random() * 70);
+            const alpha = (0.25 + Math.random() * 0.3).toFixed(2);
+            this.emitParticle(
+                emitX, emitY,
+                (Math.random() - 0.5) * 0.4,
+                -0.25 - Math.random() * 0.45,
+                35 + Math.floor(Math.random() * 25),
+                { color: `rgba(${gray},${gray},${gray},${alpha})`, size: 2.5 + Math.random() * 2.5, layer: 'smoke' }
+            );
+        }
+
+        // Fire (hull < 35%)
+        if (hullRatio < 0.35) {
+            const fireIntensity = (0.35 - hullRatio) / 0.35;
+            if (Math.random() < fireIntensity * 0.55) {
+                const fireColors = [
+                    'rgba(255,90,0,0.9)',
+                    'rgba(255,150,0,0.85)',
+                    'rgba(255,210,30,0.8)'
+                ];
+                this.emitParticle(
+                    emitX + (Math.random() - 0.5) * ship.size * 0.35,
+                    emitY + (Math.random() - 0.5) * ship.size * 0.35,
+                    (Math.random() - 0.5) * 1.2,
+                    -0.4 - Math.random() * 0.9,
+                    10 + Math.floor(Math.random() * 12),
+                    { color: fireColors[Math.floor(Math.random() * fireColors.length)], size: 1.5 + Math.random() * 2, layer: 'fire' }
+                );
+            }
+        }
+    }
+
+    // Age and move all particles; remove expired ones
+    updateParticles() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.lifetime--;
+            if (p.lifetime <= 0) this.particles.splice(i, 1);
+        }
+    }
+
+    // Draw all particles of a given layer (smoke or fire)
+    drawParticles(centerX, centerY, scale, layer) {
+        this.particles.forEach(p => {
+            if (p.layer !== layer) return;
+            const pos = this.worldToScreen(p.x, p.y, centerX, centerY, scale);
+            if (pos.x < -10 || pos.x > this.width + 10 || pos.y < -10 || pos.y > this.height + 10) return;
+            const lifeRatio = p.lifetime / p.maxLifetime;
+            const displaySize = Math.max(0.5, (p.size / scale) * (0.4 + lifeRatio * 0.6));
+            this.ctx.save();
+            this.ctx.globalAlpha = lifeRatio * 0.9;
+            this.ctx.fillStyle = p.color;
+            this.ctx.beginPath();
+            this.ctx.arc(pos.x, pos.y, displaySize, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.restore();
+        });
+    }
+
+    // Draw hull and shield status bars above a ship; showBars gates visibility
+    drawShipStatusBars(ship, centerX, centerY, scale, showBars) {
+        if (!showBars) return;
+        const pos = this.worldToScreen(ship.x, ship.y, centerX, centerY, scale);
+        const shipSize = ship.size / scale;
+        const barWidth = Math.max(22, shipSize * 2.4);
+        const barHeight = 3;
+        const barX = pos.x - barWidth / 2;
+        const hullY = pos.y - shipSize - 15;
+        const shieldY = hullY + barHeight + 2;
+
+        const hullRatio   = Math.max(0, Math.min(1, ship.hull / Math.max(1, ship.maxHull)));
+        const shieldRatio = Math.max(0, Math.min(1, ship.shieldStrength / Math.max(1, ship.maxShieldStrength)));
+
+        this.ctx.save();
+        // Dark track backgrounds
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        this.ctx.fillRect(barX - 1, hullY - 1, barWidth + 2, barHeight + 2);
+        this.ctx.fillRect(barX - 1, shieldY - 1, barWidth + 2, barHeight + 2);
+        // Hull bar
+        if (hullRatio > 0) {
+            this.ctx.fillStyle = this.getHullColor(hullRatio);
+            this.ctx.fillRect(barX, hullY, barWidth * hullRatio, barHeight);
+        }
+        // Shield bar (only when shields have power)
+        if (shieldRatio > 0 && ship.subsystems.shields.power > 0) {
+            this.ctx.fillStyle = 'rgba(80, 180, 255, 0.9)';
+            this.ctx.fillRect(barX, shieldY, barWidth * shieldRatio, barHeight);
+        }
+        this.ctx.restore();
     }
 
     // Clear the canvas
@@ -162,13 +316,49 @@ class Renderer {
             this.ctx.setLineDash([]);
         }
 
-        // Shield bubble (if shields are up)
+        // Shield bubble — color shifts cyan → amber → red with strength; flickers when weak
         if (ship.shieldStrength > 0 && ship.subsystems.shields.power > 0) {
-            const shieldAlpha = (ship.shieldStrength / ship.maxShieldStrength) * 0.3;
-            this.ctx.fillStyle = `rgba(100, 200, 255, ${shieldAlpha})`;
+            const shieldRatio = ship.shieldStrength / Math.max(1, ship.maxShieldStrength);
+            const time = Date.now() / 1000;
+            const pulse = Math.sin(time * 2.5 + ship.x * 0.01) * 0.08 + 0.92;
+            const flickerFactor = shieldRatio < 0.3 ? (Math.random() > 0.35 ? 1 : 0.25) : 1;
+
+            // Cyan (healthy) → amber (weakened) → red (critical)
+            let sR, sG, sB;
+            if (shieldRatio >= 0.5) {
+                const t = (1 - shieldRatio) * 2;
+                sR = Math.round(100 * t);
+                sG = Math.round(200 - 60 * t);
+                sB = 255;
+            } else {
+                const t = shieldRatio * 2;
+                sR = 255;
+                sG = Math.round(140 * t);
+                sB = Math.round(255 * t);
+            }
+
+            const baseAlpha = shieldRatio * 0.32 * pulse * flickerFactor;
+            const shieldRadius = size + 6;
+
+            const grad = this.ctx.createRadialGradient(0, 0, 0, 0, 0, shieldRadius);
+            grad.addColorStop(0,    `rgba(${sR},${sG},${sB},0)`);
+            grad.addColorStop(0.65, `rgba(${sR},${sG},${sB},${(baseAlpha * 0.4).toFixed(3)})`);
+            grad.addColorStop(1,    `rgba(${sR},${sG},${sB},${baseAlpha.toFixed(3)})`);
+            this.ctx.fillStyle = grad;
             this.ctx.beginPath();
-            this.ctx.arc(0, 0, size + 5, 0, Math.PI * 2);
+            this.ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
             this.ctx.fill();
+
+            // Visible boundary arc
+            const outlineAlpha = Math.min(0.85, shieldRatio * 0.6 + 0.2) * flickerFactor;
+            this.ctx.strokeStyle = `rgba(${sR},${sG},${sB},${outlineAlpha.toFixed(3)})`;
+            this.ctx.lineWidth = 1;
+            this.ctx.shadowColor = `rgb(${sR},${sG},${sB})`;
+            this.ctx.shadowBlur = 4;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, shieldRadius, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.shadowBlur = 0;
         }
 
         // Glow effect
@@ -196,6 +386,50 @@ class Renderer {
         }
         
         this.ctx.fill();
+
+        // Hull damage tint overlay — increases toward dark red as hull drops below 80%
+        const hullRatio = ship.hull / Math.max(1, ship.maxHull);
+        if (hullRatio < 0.8) {
+            const damageT = (0.8 - hullRatio) / 0.8;
+            const flickerMod = hullRatio < 0.25 && Math.random() > 0.65 ? 0.2 : 1;
+            this.ctx.fillStyle = `rgba(180, 30, 0, ${(damageT * 0.45 * flickerMod).toFixed(3)})`;
+            this.ctx.beginPath();
+            if (isPlayer) {
+                this.ctx.moveTo(size, 0);
+                this.ctx.lineTo(-size * 0.7, -size * 0.6);
+                this.ctx.lineTo(-size * 0.3, 0);
+                this.ctx.lineTo(-size * 0.7, size * 0.6);
+            } else {
+                this.ctx.moveTo(size * 0.8, 0);
+                this.ctx.lineTo(-size * 0.5, -size * 0.5);
+                this.ctx.lineTo(-size * 0.3, 0);
+                this.ctx.lineTo(-size * 0.5, size * 0.5);
+            }
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
+
+        // Scar marks — bright irregular lines burned into the hull below 50%
+        if (hullRatio < 0.5) {
+            const scarAlpha = Math.min(0.75, (0.5 - hullRatio) * 1.5);
+            const scars = this.getShipScarData(ship);
+            const prevShadowBlur = this.ctx.shadowBlur;
+            this.ctx.shadowBlur = 0;
+            this.ctx.strokeStyle = `rgba(255, 180, 60, ${scarAlpha.toFixed(3)})`;
+            this.ctx.lineWidth = 0.7;
+            scars.forEach(scar => {
+                const cx = Math.cos(scar.angle) * scar.radius * size;
+                const cy = Math.sin(scar.angle) * scar.radius * size;
+                const halfLen = scar.length * size;
+                const dx = Math.cos(scar.perpAngle) * halfLen;
+                const dy = Math.sin(scar.perpAngle) * halfLen;
+                this.ctx.beginPath();
+                this.ctx.moveTo(cx - dx, cy - dy);
+                this.ctx.lineTo(cx + dx, cy + dy);
+                this.ctx.stroke();
+            });
+            this.ctx.shadowBlur = prevShadowBlur;
+        }
 
         // Engine glow
         if (ship.velocity > 0) {
@@ -534,7 +768,13 @@ class Renderer {
 
         this.clear();
         this.drawStars(centerX, centerY, scale);
-        
+
+        // Emit damage particles for every ship, then age the whole pool
+        [...gameState.ships, gameState.playerShip].forEach(ship => {
+            this.emitDamageParticles(ship);
+        });
+        this.updateParticles();
+
         if (showGrid) {
             this.drawGrid(centerX, centerY, scale);
         }
@@ -564,6 +804,9 @@ class Renderer {
             });
         }
 
+        // Smoke particles drawn behind ships so beams and hulls appear in front
+        this.drawParticles(centerX, centerY, scale, 'smoke');
+
         // Draw phaser beams
         gameState.phaserBeams.forEach(beam => {
             this.drawPhaserBeam(beam, centerX, centerY, scale);
@@ -587,6 +830,17 @@ class Renderer {
 
         // Draw player ship
         this.drawShip(gameState.playerShip, centerX, centerY, scale, true, false);
+
+        // Fire particles sit in front of hulls but behind waypoint markers and HUD
+        this.drawParticles(centerX, centerY, scale, 'fire');
+
+        // Status bars — shown for player, scanned ships, and the current target
+        gameState.ships.forEach(ship => {
+            const isTarget = ship.id === gameState.currentTarget;
+            const showBars = ship.scanned || ship.faction === 'friendly' || isTarget;
+            this.drawShipStatusBars(ship, centerX, centerY, scale, showBars);
+        });
+        this.drawShipStatusBars(gameState.playerShip, centerX, centerY, scale, true);
 
         // Draw ship waypoint markers (after ships so they're on top)
         if (showShipWaypoints) {

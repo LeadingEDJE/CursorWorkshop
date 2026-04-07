@@ -16,9 +16,9 @@ Key considerations:
 We will implement nuke behavior in the simulation layer with config in state.js: `blastRadius`, `splashDamage`, `proximityRadius`. Nukes detonate on (1) proximity to any valid ship (excluding launcher), (2) direct collision, or (3) lifetime expiry. On detonation, all ships within `blastRadius` take damage: direct hit uses full `damage`, otherwise `splashDamage × (1 − dist/blastRadius)`.
 
 Implementation:
-- **Config (state.js)**: Nuke has `blastRadius: 200`, `splashDamage: 50`, `proximityRadius: 40`, `damage: 80` (direct). Other ordnance use `blastRadius: 0`, `splashDamage: 0`, `proximityRadius: 0`.
+- **Config (state.js)**: Nuke has `blastRadius: 200`, `splashDamage: 50`, `proximityRadius: 40`, `damage: 80` (direct). Other ordnance use `blastRadius: 0`, `splashDamage: 0`, `proximityRadius: 0`. Projectiles store `initialLifetime` (same as `lifetime` at spawn) so age-in-flight can be computed in simulation.
 - **Proximity**: Each frame, if `proximityRadius > 0`, check distance to any ship that is not the source; if within `proximityRadius`, call `detonateProjectile(proj, i)` and remove projectile.
-- **Collision**: On direct hit (projectile within ship.size + proj.size), if `blastRadius > 0` call `detonateProjectile` instead of applying single-target damage.
+- **Collision**: On direct hit (projectile within ship.size + proj.size), if `blastRadius > 0` call `detonateProjectile` instead of applying single-target damage, **except** when the hit target is the player ship: ordnance detonates on the player only if it has been active for more than one second (age in ticks = `initialLifetime - lifetime`; 1 second = 20 ticks at 50 ms/tick). If the projectile hits the player before that, only direct damage is applied and the projectile is removed (no detonation/splash).
 - **Lifetime expiry**: When `lifetime <= 0` and `blastRadius > 0`, detonate in place instead of removing the projectile silently.
 - **Detonation**: `detonateProjectile(proj, index)` applies to all ships in `blastRadius`: direct hit = `proj.damage`, else `splashDamage × (1 − dist/blastRadius)`; emits `nukeDetonation` for visuals/audio; removes projectile.
 
@@ -29,6 +29,7 @@ Implementation:
 - **Predictable rules**: Proximity, collision, and expiry all documented and consistent
 - **Reusable**: Same detonation path for proximity, collision, and expiry
 - **Scalable**: Damage scaled by weapon effectiveness when projectile is created (state.js)
+- **Player balance**: Full detonation on the player only after >1s in flight avoids instant point-blank nuke payoff; early hits still apply direct damage
 
 ### Negative
 - **Friendly fire**: Player nukes can damage player ship if inside blast radius

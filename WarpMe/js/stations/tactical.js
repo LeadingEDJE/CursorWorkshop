@@ -7,6 +7,70 @@ import { gameState } from '../core/state.js';
 import { renderer } from '../core/renderer.js';
 import { audio } from '../core/audio.js';
 
+// Pure helpers — exported so tests can import them without a DOM or canvas context.
+
+/**
+ * Maps a hull integrity ratio (0–1) to a CSS rgb color.
+ * green (full) → yellow (mid) → red (critical), matching renderer.getHullColor().
+ * @param {number} hullRatio - value in [0, 1]
+ * @returns {string} CSS color string
+ */
+export function getHullColor(hullRatio) {
+    let r, g;
+    if (hullRatio > 0.6) {
+        r = Math.round(255 * (1 - hullRatio) / 0.4);
+        g = 255;
+    } else {
+        r = 255;
+        g = Math.round(255 * hullRatio / 0.6);
+    }
+    return `rgb(${r}, ${g}, 0)`;
+}
+
+/**
+ * Maps a shield strength ratio (0–1) to a CSS color.
+ * Full shields → cyan; zero or offline → dim gray.
+ * @param {number} shieldRatio - value in [0, 1]
+ * @param {boolean} shieldsOnline - false when shield subsystem power is 0
+ * @returns {string} CSS color string
+ */
+export function getShieldColor(shieldRatio, shieldsOnline) {
+    if (!shieldsOnline || shieldRatio <= 0) return 'rgba(80, 80, 100, 0.4)';
+    const b = 255;
+    const g = Math.round(140 + 80 * shieldRatio);
+    return `rgba(80, ${g}, ${b}, 0.9)`;
+}
+
+/**
+ * Returns a short human-readable condition label for a scanned ship.
+ * @param {object} ship - ship object with hull, maxHull, shieldStrength, maxShieldStrength, subsystems
+ * @returns {string} condition label
+ */
+export function getConditionLabel(ship) {
+    const hullRatio   = ship.hull / Math.max(1, ship.maxHull);
+    const shieldRatio = ship.shieldStrength / Math.max(1, ship.maxShieldStrength);
+    const shieldsOn   = ship.subsystems.shields.power > 0;
+
+    if (hullRatio <= 0.25) return 'Hull Critical';
+    if (hullRatio <= 0.5)  return 'Hull Damaged';
+    if (!shieldsOn || shieldRatio <= 0) return 'Shields Offline';
+    if (shieldRatio <= 0.3) return 'Shields Critical';
+    if (shieldRatio <= 0.6) return 'Shields Weakened';
+    if (hullRatio <= 0.75)  return 'Hull Moderate';
+    return 'Nominal';
+}
+
+/**
+ * Returns a CSS class suffix for the condition label styling.
+ * @param {string} label - result of getConditionLabel()
+ * @returns {string} one of 'nominal' | 'warning' | 'critical'
+ */
+export function getConditionClass(label) {
+    if (label === 'Nominal') return 'nominal';
+    if (label === 'Hull Critical' || label === 'Shields Critical') return 'critical';
+    return 'warning';
+}
+
 class TacticalStation {
     constructor() {
         this.container = null;
@@ -37,6 +101,7 @@ class TacticalStation {
                         <div id="scan-info" class="scan-info">
                             <p class="dim">No target selected</p>
                         </div>
+                        <div id="target-status" class="target-status" aria-live="polite" aria-label="Target combat status"></div>
                         <button id="scan-btn" class="btn btn-primary" disabled>
                             <span class="btn-icon">◎</span> SCAN
                         </button>
@@ -223,6 +288,7 @@ class TacticalStation {
         if (!this.selectedShip) {
             info.innerHTML = '<p class="dim">No target selected</p>';
             btn.disabled = true;
+            this.updateTargetStatus();
             return;
         }
 
@@ -252,14 +318,6 @@ class TacticalStation {
                         <span>Distance:</span>
                         <span>${Math.round(dist)} km</span>
                     </div>
-                    <div class="scan-row">
-                        <span>Hull:</span>
-                        <span>${Math.round(ship.hull)}%</span>
-                    </div>
-                    <div class="scan-row">
-                        <span>Shields:</span>
-                        <span>${Math.round(ship.shieldStrength)}%</span>
-                    </div>
                 </div>
             `;
         } else {
@@ -278,6 +336,93 @@ class TacticalStation {
                         <span class="faction-${ship.faction}">${ship.faction.toUpperCase()}</span>
                     </div>
                 </div>
+            `;
+        }
+
+        this.updateTargetStatus();
+    }
+
+    updateTargetStatus() {
+        const statusEl = document.getElementById('target-status');
+        if (!statusEl) return;
+
+        if (!this.selectedShip) {
+            statusEl.innerHTML = '';
+            return;
+        }
+
+        const ship = this.selectedShip;
+        const hullRatio   = Math.max(0, Math.min(1, ship.hull / Math.max(1, ship.maxHull)));
+        const shieldsOn   = ship.subsystems.shields.power > 0;
+        const shieldRatio = Math.max(0, Math.min(1, ship.shieldStrength / Math.max(1, ship.maxShieldStrength)));
+
+        if (ship.scanned) {
+            const hullPct    = Math.round(hullRatio * 100);
+            const shieldPct  = Math.round(shieldRatio * 100);
+            const hullColor  = getHullColor(hullRatio);
+            const condition  = getConditionLabel(ship);
+            const condClass  = getConditionClass(condition);
+
+            const shieldBarClass = shieldsOn && shieldRatio > 0 ? 'shield-fill' : 'shield-offline';
+            const shieldWidth    = shieldsOn ? `${shieldRatio * 100}%` : '0%';
+            const shieldLabel    = shieldsOn ? `${shieldPct}%` : 'OFF';
+
+            statusEl.innerHTML = `
+                <div class="target-status-row">
+                    <span class="target-status-label">Hull</span>
+                    <div class="target-status-bar"
+                         role="progressbar"
+                         aria-label="Target hull integrity"
+                         aria-valuenow="${hullPct}"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="target-status-fill"
+                             style="width:${hullRatio * 100}%;background:${hullColor}"></div>
+                    </div>
+                    <span class="target-status-value">${hullPct}%</span>
+                </div>
+                <div class="target-status-row">
+                    <span class="target-status-label">Shields</span>
+                    <div class="target-status-bar"
+                         role="progressbar"
+                         aria-label="Target shield strength"
+                         aria-valuenow="${shieldsOn ? shieldPct : 0}"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="target-status-fill ${shieldBarClass}"
+                             style="width:${shieldWidth}"></div>
+                    </div>
+                    <span class="target-status-value">${shieldLabel}</span>
+                </div>
+                <p class="target-status-condition condition-${condClass}">${condition}</p>
+            `;
+        } else {
+            statusEl.innerHTML = `
+                <div class="target-status-row">
+                    <span class="target-status-label">Hull</span>
+                    <div class="target-status-bar"
+                         role="progressbar"
+                         aria-label="Target hull integrity unknown"
+                         aria-valuenow="0"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="target-status-fill" style="width:0%"></div>
+                    </div>
+                    <span class="target-status-value dim">---</span>
+                </div>
+                <div class="target-status-row">
+                    <span class="target-status-label">Shields</span>
+                    <div class="target-status-bar"
+                         role="progressbar"
+                         aria-label="Target shield strength unknown"
+                         aria-valuenow="0"
+                         aria-valuemin="0"
+                         aria-valuemax="100">
+                        <div class="target-status-fill" style="width:0%"></div>
+                    </div>
+                    <span class="target-status-value dim">---</span>
+                </div>
+                <p class="target-status-unknown">Scan target for details</p>
             `;
         }
     }

@@ -76,25 +76,16 @@ WarpMe/
 │   └── main.css            # All styles (LCARS theme)
 └── js/
     ├── main.js             # Application bootstrap
-    ├── core/
-    │   ├── state.js        # Central game state management
-    │   ├── simulation.js   # Game loop and physics
-    │   ├── renderer.js     # Canvas rendering system
-    │   ├── audio.js        # Procedural sound effects
-    │   └── scenario.js     # Initial game setup
-    └── stations/
-        ├── tactical.js     # Tactical station UI
-        ├── weapons.js      # Weapons station UI
-        ├── helm.js         # Helm station UI
-        ├── navigation.js   # Navigation station UI
-        ├── comms.js        # Communications station UI
-        └── engineering.js  # Engineering station UI
+    ├── core/               # Contains core application
+    └── stations/           # Contains station-specific logic
+
 ```
 
 ## 📖 Documentation
 
 - [Architecture Guide](ARCHITECTURE.md) - System design and code organization
 - [Style Guide](STYLE_GUIDE.md) - Visual design system and CSS patterns
+- [Architectural Decision Records](docs/adrs/README.md) - List of all architecture decision records
 
 ## 🎨 Customization
 

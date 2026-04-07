@@ -8,7 +8,7 @@ import { renderer } from '../core/renderer.js';
 import { audio } from '../core/audio.js';
 
 const ORDNANCE_CONFIG = {
-    torpedo: { maxAmmo: 10, cooldown: 60, label: 'Homing', btnClass: 'btn-warning' },
+    torpedo: { maxAmmo: 15, cooldown: 60, label: 'Homing', btnClass: 'btn-warning' },
     dumbTorpedo: { maxAmmo: 8, cooldown: 45, label: 'Dumb', btnClass: 'btn-info' },
     nuke: { maxAmmo: 6, cooldown: 120, label: 'Nuke', btnClass: 'btn-nuke' }
 };
@@ -21,7 +21,7 @@ class WeaponsStation {
         this.phaserCharge = 100;
         this.phaserCooldown = 0;
         this.selectedOrdnanceType = 'torpedo';
-        this.torpedoCount = 10;
+        this.torpedoCount = 15;
         this.dumbTorpedoCount = 8;
         this.nukeCount = 6;
         this.torpedoCooldown = 0;
@@ -77,7 +77,7 @@ class WeaponsStation {
                         </div>
                         <div class="ordnance-display">
                             <div class="torpedo-count">
-                                <span id="ordnance-count">10</span> / <span id="ordnance-max">10</span>
+                                <span id="ordnance-count">15</span> / <span id="ordnance-max">15</span>
                             </div>
                             <div class="torpedo-tubes">
                                 <div class="torpedo-tube" data-tube="1">●</div>

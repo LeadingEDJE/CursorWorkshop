@@ -14,6 +14,9 @@ class HelmStation {
         this.scale = 0.8; // Zoomed in for close navigation
         this.isHeadingDrag = false;
         this.isSteerDrag = false;
+        this._onAutopilotEngaged = () => this.syncHelmAutopilotPanel();
+        this._onAutopilotDisengaged = () => this.syncHelmAutopilotPanel();
+        this._onAutopilotModeChanged = () => this.syncHelmAutopilotPanel();
     }
 
     init(container) {
@@ -33,6 +36,17 @@ class HelmStation {
                     </div>
                 </div>
                 <div class="helm-controls">
+                    <div class="helm-panel helm-autopilot-panel">
+                        <h3>AUTOPILOT</h3>
+                        <div class="autopilot-row">
+                            <button type="button" id="autopilot-toggle" class="btn btn-primary"
+                                aria-pressed="false" aria-label="Toggle autopilot">ENGAGE</button>
+                            <span id="autopilot-status" class="autopilot-status">OFF</span>
+                        </div>
+                        <div id="autopilot-mode" class="autopilot-mode dim" aria-live="polite">—</div>
+                        <p class="autopilot-hint dim">Press <kbd>P</kbd> to toggle. Manual helm disengages autopilot.</p>
+                    </div>
+                    <div id="helm-manual-controls" class="helm-manual-controls">
                     <div class="helm-panel throttle-panel">
                         <h3>THROTTLE</h3>
                         <div class="throttle-control">
@@ -105,12 +119,14 @@ class HelmStation {
                             ${this.getWaypointInfo()}
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
         `;
 
         this.canvas = document.getElementById('helm-canvas');
         renderer.init(this.canvas);
+        this.syncHelmAutopilotPanel();
     }
 
     getWaypointInfo() {
@@ -144,6 +160,22 @@ class HelmStation {
     }
 
     setupEventListeners() {
+        gameState.on('autopilotEngaged', this._onAutopilotEngaged);
+        gameState.on('autopilotDisengaged', this._onAutopilotDisengaged);
+        gameState.on('autopilotModeChanged', this._onAutopilotModeChanged);
+
+        const autopilotToggle = document.getElementById('autopilot-toggle');
+        if (autopilotToggle) {
+            autopilotToggle.addEventListener('click', () => {
+                if (gameState.autopilot) {
+                    gameState.disengageAutopilot();
+                } else {
+                    gameState.engageAutopilot();
+                }
+                audio.playClick();
+            });
+        }
+
         // Throttle slider
         const throttleSlider = document.getElementById('throttle-slider');
         throttleSlider.addEventListener('input', (e) => {
@@ -278,6 +310,7 @@ class HelmStation {
     }
 
     setThrottle(percent) {
+        this.handleManualOverride();
         const ship = gameState.playerShip;
         const engineEffectiveness = (ship.subsystems.engines.hp / 100) * (ship.subsystems.engines.power / 100);
         ship.velocity = (percent / 100) * ship.maxVelocity * engineEffectiveness;
@@ -286,12 +319,14 @@ class HelmStation {
     }
 
     setHeading(heading) {
+        this.handleManualOverride();
         heading = ((heading % 360) + 360) % 360;
         gameState.playerShip.heading = heading;
         this.updateHeadingDisplay();
     }
 
     turn(degrees) {
+        this.handleManualOverride();
         let heading = gameState.playerShip.heading + degrees;
         heading = ((heading % 360) + 360) % 360;
         gameState.playerShip.heading = heading;
@@ -373,6 +408,45 @@ class HelmStation {
             showHUD: true,
             showWaypointLine: true
         });
+
+        this.syncHelmAutopilotPanel();
+    }
+
+    syncHelmAutopilotPanel() {
+        const on = gameState.autopilot;
+        const toggle = document.getElementById('autopilot-toggle');
+        const status = document.getElementById('autopilot-status');
+        const modeEl = document.getElementById('autopilot-mode');
+        const manual = document.getElementById('helm-manual-controls');
+
+        if (toggle) {
+            toggle.textContent = on ? 'DISENGAGE' : 'ENGAGE';
+            toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
+        }
+        if (status) {
+            status.textContent = on ? 'ACTIVE' : 'OFF';
+            status.className = on ? 'autopilot-status autopilot-status--on' : 'autopilot-status';
+        }
+        if (modeEl) {
+            if (!on) {
+                modeEl.textContent = '—';
+                modeEl.classList.add('dim');
+            } else {
+                const labels = { cruise: 'CRUISE', waypoint: 'WAYPOINT', combat: 'COMBAT' };
+                const m = gameState.autopilotMode || 'cruise';
+                modeEl.textContent = labels[m] || String(m).toUpperCase();
+                modeEl.classList.remove('dim');
+            }
+        }
+        if (manual) {
+            manual.classList.toggle('helm-controls-autopilot-active', on);
+        }
+    }
+
+    handleManualOverride() {
+        if (gameState.autopilot) {
+            gameState.disengageAutopilot();
+        }
     }
 
     handleCompassPointer(event) {
@@ -418,7 +492,9 @@ class HelmStation {
     }
 
     destroy() {
-        // Cleanup
+        gameState.off('autopilotEngaged', this._onAutopilotEngaged);
+        gameState.off('autopilotDisengaged', this._onAutopilotDisengaged);
+        gameState.off('autopilotModeChanged', this._onAutopilotModeChanged);
     }
 }
 

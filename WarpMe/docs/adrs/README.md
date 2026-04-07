@@ -26,6 +26,9 @@ ADRs document important architectural decisions made during the project's develo
 | [0011](0011-per-ship-command-waypoints.md) | Per-Ship Command Waypoints for Fleet Coordination | Accepted |
 | [0012](0012-weapons-and-ordnance-system.md) | Weapons and Ordnance System Overview | Accepted |
 | [0013](0013-nuke-ordnance-behavior.md) | Nuke Ordnance Behavior (Proximity Detonation and Splash Damage) | Accepted |
+| [0014](0014-ship-status-visual-system.md) | Ship Status Visual System (Shields, Damage, Particles, Status Bars) | Accepted |
+| [0015](0015-target-status-tactical-sidebar.md) | Target Status Display in Tactical Sidebar | Accepted |
+| [0016](0016-helm-autopilot-system.md) | Helm Autopilot System | Accepted |
 
 ## Adding New ADRs
 
