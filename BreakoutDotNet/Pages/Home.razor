@@ -1,9 +1,53 @@
 ﻿@page "/"
+@using System.Text.Json
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
-<PageTitle>Breakout Game</PageTitle>
+<PageTitle>Breakout</PageTitle>
 
-<h1>Breakout</h1>
+<canvas id="game-canvas"></canvas>
 
-<p class="text-muted">Game canvas placeholder — add game logic here.</p>
+@code {
+    private readonly GameEngine _engine = new();
+    private GameInterop? _interop;
+    private DotNetObjectReference<Home>? _dotNetRef;
+    private bool _initialized;
 
-<canvas id="game-canvas" width="640" height="480" class="border rounded bg-dark"></canvas>
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+
+        _engine.Initialize();
+
+        _interop = new GameInterop(JS);
+        await _interop.InitializeAsync();
+
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await _interop.StartGameLoopAsync(_dotNetRef, "game-canvas");
+    }
+
+    /// <summary>
+    /// Called every animation frame by the JS rAF loop.
+    /// Advances game state and returns serialized render commands.
+    /// </summary>
+    [JSInvokable]
+    public string Tick(double deltaTime, InputState input)
+    {
+        _engine.Update(deltaTime, input);
+        var commands = _engine.GetRenderCommands();
+        return JsonSerializer.Serialize(commands, _jsonOptions);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_interop is not null)
+            await _interop.DisposeAsync();
+        _dotNetRef?.Dispose();
+    }
+}
