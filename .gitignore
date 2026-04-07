@@ -165,3 +165,6 @@ checkstyle-result.xml
 *.zip
 *.tar.gz
 *.rar
+
+UseCaseExercises/src/
+UseCaseExercises/docs
