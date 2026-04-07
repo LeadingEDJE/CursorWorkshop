@@ -22,6 +22,8 @@ Implementation:
 - **Lifetime expiry**: When `lifetime <= 0` and `blastRadius > 0`, detonate in place instead of removing the projectile silently.
 - **Detonation**: `detonateProjectile(proj, index)` applies to all ships in `blastRadius`: direct hit = `proj.damage`, else `splashDamage × (1 − dist/blastRadius)`; emits `nukeDetonation` for visuals/audio; removes projectile.
 
+**Out of scope for this ADR:** How many nukes the player carries, how fast the magazine refills after firing, and per-shot launch cooldown are weapons-station concerns (`ORDNANCE_CONFIG` in `weapons.js`, including `rechargePerTick` and accumulators). See **ADR-0012** for magazine recharge and ordnance ownership; this ADR covers only in-flight detonation and damage.
+
 ## Consequences
 
 ### Positive

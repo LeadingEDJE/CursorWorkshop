@@ -72,6 +72,7 @@ This simulator demonstrates several concepts valuable for AI coding workshops:
 ```
 WarpMe/
 ├── index.html              # Main HTML entry point
+|-- 
 ├── css/
 │   └── main.css            # All styles (LCARS theme)
 └── js/
