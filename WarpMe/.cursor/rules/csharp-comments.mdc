@@ -1,0 +1,57 @@
+---
+description: C# comment style — block for multi-line, XML docs only on public methods
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# C# comments
+
+## Multi-line comments
+
+Use block comments `/* ... */` for any comment that spans more than one line. Do not use repeated single-line `//` for the same logical comment.
+
+```csharp
+// ❌ BAD
+// This validates input before
+// persisting to the store.
+
+// ✅ GOOD
+/* This validates input before 
+   persisting to the store. */
+```
+
+```csharp
+// ❌ BAD
+// Line one of explanation.
+// Line two continues here.
+
+// ✅ GOOD
+/*
+ * Line one of explanation.
+ * Line two continues here.
+ */
+```
+
+Single-line remarks may still use `//` when they fit on one line.
+
+## XML documentation (`///`)
+
+Use `///` summary (and related XML doc tags) **only** on **public** methods, properties, types, and other public API members that consumers see.
+
+- **Public** API: document with `///` where a summary adds value (e.g. public methods on public types).
+- **Non-public** (`internal`, `private`, `protected`, file-local, etc.): do **not** use `///`; use `//` or `/* */` as needed.
+
+```csharp
+// ✅ GOOD — public method documented
+/// <summary>Computes the total for the current cart.</summary>
+public decimal GetCartTotal() { ... }
+
+// ✅ GOOD — private helper, no XML doc
+private static bool IsValidSku(string sku)
+{
+    /* SKU must be non-empty and match warehouse format. */
+    ...
+}
+```
+
+Do not add `///` on private or internal members solely for consistency with public APIs.

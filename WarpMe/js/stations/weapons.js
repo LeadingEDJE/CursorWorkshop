@@ -7,10 +7,29 @@ import { gameState } from '../core/state.js';
 import { renderer } from '../core/renderer.js';
 import { audio } from '../core/audio.js';
 
+// rechargePerTick: fraction of one round recharged per sim tick at 100% weapons hp/power (~20 ticks/s).
 const ORDNANCE_CONFIG = {
-    torpedo: { maxAmmo: 15, cooldown: 60, label: 'Homing', btnClass: 'btn-warning' },
-    dumbTorpedo: { maxAmmo: 8, cooldown: 45, label: 'Dumb', btnClass: 'btn-info' },
-    nuke: { maxAmmo: 6, cooldown: 120, label: 'Nuke', btnClass: 'btn-nuke' }
+    torpedo: {
+        maxAmmo: 15,
+        cooldown: 60,
+        label: 'Homing',
+        btnClass: 'btn-warning',
+        rechargePerTick: 1 / (12 * 20)
+    },
+    dumbTorpedo: {
+        maxAmmo: 8,
+        cooldown: 45,
+        label: 'Dumb',
+        btnClass: 'btn-info',
+        rechargePerTick: 1 / (10 * 20)
+    },
+    nuke: {
+        maxAmmo: 6,
+        cooldown: 120,
+        label: 'Nuke',
+        btnClass: 'btn-nuke',
+        rechargePerTick: 1 / (15 * 20)
+    }
 };
 
 class WeaponsStation {
@@ -27,6 +46,9 @@ class WeaponsStation {
         this.torpedoCooldown = 0;
         this.dumbTorpedoCooldown = 0;
         this.nukeCooldown = 0;
+        this.torpedoRechargeAccumulator = 0;
+        this.dumbTorpedoRechargeAccumulator = 0;
+        this.nukeRechargeAccumulator = 0;
     }
 
     init(container) {
@@ -263,6 +285,27 @@ class WeaponsStation {
         else this.nukeCount--;
     }
 
+    rechargeOrdnanceAmmo(weaponSys) {
+        const subsystemMult = (weaponSys.hp / 100) * (weaponSys.power / 100);
+
+        const applyRecharge = (type, countKey, accKey) => {
+            const cfg = ORDNANCE_CONFIG[type];
+            let count = this[countKey];
+            if (count >= cfg.maxAmmo) return;
+
+            this[accKey] += cfg.rechargePerTick * subsystemMult;
+            while (this[accKey] >= 1 && count < cfg.maxAmmo) {
+                this[accKey] -= 1;
+                count += 1;
+            }
+            this[countKey] = count;
+        };
+
+        applyRecharge('torpedo', 'torpedoCount', 'torpedoRechargeAccumulator');
+        applyRecharge('dumbTorpedo', 'dumbTorpedoCount', 'dumbTorpedoRechargeAccumulator');
+        applyRecharge('nuke', 'nukeCount', 'nukeRechargeAccumulator');
+    }
+
     updateTargetSelect() {
         const select = document.getElementById('target-select');
         if (!select) return;
@@ -378,6 +421,8 @@ class WeaponsStation {
         if (this.torpedoCooldown > 0) this.torpedoCooldown--;
         if (this.dumbTorpedoCooldown > 0) this.dumbTorpedoCooldown--;
         if (this.nukeCooldown > 0) this.nukeCooldown--;
+
+        this.rechargeOrdnanceAmmo(weaponSys);
 
         // Update UI
         const chargeEl = document.getElementById('phaser-charge');

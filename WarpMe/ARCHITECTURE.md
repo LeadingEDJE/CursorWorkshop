@@ -6,19 +6,21 @@ This document describes the system architecture, code organization, and key desi
 
 WarpMe is a single-page application (SPA) built with vanilla JavaScript ES modules. It uses a central state management pattern with event-driven updates to keep all UI components synchronized.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         index.html                               │
-│  ┌─────────────┐  ┌─────────────────────────────────────────┐  │
-│  │   Top Nav   │  │              Tab Navigation              │  │
-│  └─────────────┘  └─────────────────────────────────────────┘  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    Active Station Panel                  │   │
-│  │  ┌─────────────────┐  ┌─────────────────────────────┐  │   │
-│  │  │    Controls     │  │       Canvas Viewport        │  │   │
-│  │  └─────────────────┘  └─────────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  subgraph index["index.html"]
+    direction TB
+    subgraph navRow["Navigation"]
+      direction LR
+      TopNav["Top Nav"]
+      TabNav["Tab Navigation"]
+    end
+    subgraph station["Active Station Panel"]
+      direction LR
+      Controls["Controls"]
+      Viewport["Canvas Viewport"]
+    end
+  end
 ```
 
 ## Core Modules
