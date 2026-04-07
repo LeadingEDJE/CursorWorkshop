@@ -71,10 +71,10 @@ class HelmStation {
                         <div class="compass-container">
                             <div class="compass" id="compass">
                                 <div class="compass-ring">
-                                    <span class="compass-mark n">0°</span>
-                                    <span class="compass-mark e">90°</span>
-                                    <span class="compass-mark s">180°</span>
-                                    <span class="compass-mark w">270°</span>
+                                    <span class="compass-mark n">270°</span>
+                                    <span class="compass-mark e">0°</span>
+                                    <span class="compass-mark s">90°</span>
+                                    <span class="compass-mark w">180°</span>
                                 </div>
                                 <div class="compass-needle" id="compass-needle"></div>
                                 <div class="compass-center">${Math.round(ship.heading)}°</div>
@@ -355,7 +355,7 @@ class HelmStation {
         const input = document.getElementById('heading-input');
         const current = document.getElementById('current-heading');
         
-        if (needle) needle.style.transform = `translateX(-50%) translateY(-100%) rotate(${heading}deg)`;
+        if (needle) needle.style.transform = `translateX(-50%) translateY(-100%) rotate(${heading + 90}deg)`;
         if (center) center.textContent = `${heading}°`;
         if (input) input.value = heading;
         if (current) current.textContent = `${heading}°`;
