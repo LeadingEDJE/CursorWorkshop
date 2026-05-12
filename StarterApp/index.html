@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Starter scaffold for a Leading EDJE workshop: plain HTML, CSS, and JavaScript—no bundler required."
+    />
+    <title>Workshop Starter App</title>
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <div class="page">
+      <header class="site-header">
+        <div class="site-header__inner">
+          <div class="brand">
+            <h1 class="brand__title">Agentic AI development workshop</h1>
+            <p class="brand__subtitle">
+              This is intentionally generic starter scaffolding. Your team picks what to build—use this as a launch pad, not a
+              product spec.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <main id="main" class="site-main" tabindex="-1">
+        <div class="site-main__inner">
+          <section class="card" aria-labelledby="instructions-heading">
+            <h2 id="instructions-heading">How to use this starter</h2>
+            <p>
+              Open this file in a browser (double-click <code>index.html</code> or use your editor’s “Open in browser” flow).
+              Edit <code>index.html</code>, <code>css/styles.css</code>, and files in <code>js/</code> to evolve your idea.
+            </p>
+            <p class="muted">
+              Optional: if you prefer a local static server, see <a href="./docs/gettingstarted.md">Getting started</a>.
+            </p>
+          </section>
+
+          <div class="demo-grid">
+            <section class="card" aria-labelledby="greet-heading">
+              <h2 id="greet-heading">Sample interaction: greeting</h2>
+              <p>Type a name (or leave it blank) and press the button.</p>
+
+              <div class="field">
+                <label for="builder-name">Your name (optional)</label>
+                <input id="builder-name" name="builder-name" type="text" autocomplete="name" placeholder="Ada" />
+              </div>
+
+              <div class="row" style="margin-top: 12px">
+                <button id="greet-btn" type="button">Update greeting</button>
+              </div>
+
+              <p id="greeting-out" class="output" aria-live="polite"></p>
+            </section>
+
+            <section class="card" aria-labelledby="counter-heading">
+              <h2 id="counter-heading">Sample interaction: counter</h2>
+              <p>A tiny state object lives in JavaScript modules—good for tests and for growing real app logic.</p>
+
+              <div class="row">
+                <button id="increment-btn" type="button">Increment</button>
+                <button id="reset-btn" type="button">Reset</button>
+              </div>
+
+              <p style="margin: 12px 0 0">
+                <span class="pill" aria-live="polite"><strong>Count</strong> <span id="count-out">0</span></span>
+              </p>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <div class="site-footer__inner">
+          <p class="muted" style="margin: 0">Leading EDJE · workshop starter (HTML / CSS / JS)</p>
+          <p class="muted" style="margin: 0">
+            Docs:
+            <a href="./docs/architecture.md">Architecture</a>
+            ·
+            <a href="./docs/styleguide.md">Style guide</a>
+            ·
+            <a href="./docs/gettingstarted.md">Getting started</a>
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <script type="module" src="./js/main.js"></script>
+  </body>
+</html>
