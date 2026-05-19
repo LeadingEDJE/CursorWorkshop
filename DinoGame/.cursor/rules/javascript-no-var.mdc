@@ -1,0 +1,23 @@
+---
+description: Use let and const instead of var in JavaScript
+globs: "**/*.{js,mjs,cjs}"
+alwaysApply: false
+---
+
+# No `var` in JavaScript
+
+Never use `var` when working in JavaScript files. Use `const` by default and `let` when reassignment is required.
+
+```javascript
+// ❌ BAD
+var score = 0;
+var player = getPlayer();
+
+// ✅ GOOD
+let score = 0;
+const player = getPlayer();
+```
+
+- Prefer `const` unless the binding must be reassigned.
+- Do not introduce `var` in new code or refactors.
+- When editing existing code that uses `var`, change it to `let` or `const` as appropriate.

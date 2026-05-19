@@ -1,0 +1,205 @@
+:root {
+  color-scheme: dark;
+  --bg-deep: #0d0221;
+  --bg-navy: #1a1a2e;
+  --neon-pink: #ff2975;
+  --neon-cyan: #00fff9;
+  --neon-purple: #b537f2;
+  --neon-yellow: #ffd319;
+  --font-mono: "Consolas", "Courier New", monospace;
+  --font-display: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-display);
+  background: var(--bg-deep);
+  color: var(--neon-cyan);
+}
+
+.game-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  touch-action: none;
+  cursor: pointer;
+  outline: none;
+}
+
+#game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg-navy) 100%);
+}
+
+.score-display {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  font-family: var(--font-mono);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.score-display__label {
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  color: var(--neon-purple);
+  text-shadow: 0 0 8px var(--neon-purple);
+}
+
+.score-display__value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--neon-cyan);
+  text-shadow:
+    0 0 10px var(--neon-cyan),
+    0 0 20px var(--neon-cyan),
+    0 0 40px color-mix(in srgb, var(--neon-cyan) 50%, transparent);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  background: rgba(13, 2, 33, 0.55);
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.overlay__panel {
+  text-align: center;
+  padding: 2.5rem 3rem;
+  border: 2px solid var(--neon-pink);
+  border-radius: 4px;
+  background: rgba(13, 2, 33, 0.85);
+  box-shadow:
+    0 0 20px color-mix(in srgb, var(--neon-pink) 40%, transparent),
+    inset 0 0 30px rgba(181, 55, 242, 0.08);
+}
+
+.overlay__title {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: var(--neon-pink);
+  text-shadow:
+    0 0 10px var(--neon-pink),
+    0 0 30px var(--neon-pink),
+    0 0 60px color-mix(in srgb, var(--neon-pink) 50%, transparent);
+}
+
+.overlay__title--pulse {
+  animation: neon-pulse 2s ease-in-out infinite;
+}
+
+@keyframes neon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    text-shadow:
+      0 0 10px var(--neon-pink),
+      0 0 30px var(--neon-pink);
+  }
+  50% {
+    opacity: 0.85;
+    text-shadow:
+      0 0 20px var(--neon-pink),
+      0 0 50px var(--neon-pink),
+      0 0 80px var(--neon-purple);
+  }
+}
+
+.overlay__subtitle {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+}
+
+.overlay__score {
+  margin: 0 0 1.5rem;
+  font-size: 1.15rem;
+  color: var(--neon-cyan);
+}
+
+.overlay__score strong {
+  color: var(--neon-yellow);
+  text-shadow: 0 0 12px var(--neon-yellow);
+  font-size: 1.4rem;
+}
+
+.overlay__hint {
+  margin: 1rem 0 0;
+  font-size: 0.9rem;
+  color: var(--neon-purple);
+}
+
+kbd {
+  display: inline-block;
+  padding: 0.15em 0.45em;
+  border: 1px solid var(--neon-cyan);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--neon-cyan);
+  background: rgba(0, 255, 249, 0.08);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--neon-cyan) 30%, transparent);
+}
+
+.neon-btn {
+  appearance: none;
+  padding: 0.75rem 2rem;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--neon-pink);
+  background: rgba(13, 2, 33, 0.9);
+  border: 2px solid var(--neon-pink);
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 0 15px color-mix(in srgb, var(--neon-pink) 40%, transparent);
+  transition:
+    box-shadow 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+
+.neon-btn:hover {
+  background: rgba(255, 41, 117, 0.15);
+  box-shadow:
+    0 0 25px var(--neon-pink),
+    0 0 50px color-mix(in srgb, var(--neon-pink) 30%, transparent);
+}
+
+.neon-btn:focus-visible {
+  outline: 2px solid var(--neon-cyan);
+  outline-offset: 3px;
+}
+
+.neon-btn:active {
+  transform: translateY(1px);
+}

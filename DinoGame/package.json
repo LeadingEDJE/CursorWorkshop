@@ -1,0 +1,18 @@
+{
+  "name": "workshop-starter-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild js/main.js --bundle --outfile=js/game.bundle.js --format=iife",
+    "prestart": "npm run build",
+    "start": "serve . --listen 5173",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "happy-dom": "^17.4.4",
+    "serve": "^14.2.4",
+    "vitest": "^3.1.4"
+  }
+}

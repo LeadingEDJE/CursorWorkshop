@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Synthwave dinosaur runner — jump over obstacles and survive as long as you can."
+    />
+    <title>Dino Runner</title>
+    <link rel="stylesheet" href="./css/styles.css" />
+  </head>
+  <body>
+    <div class="game-shell">
+      <canvas id="game-canvas" aria-label="Dino runner game"></canvas>
+
+      <div id="score-display" class="score-display" aria-live="polite" hidden>
+        <span class="score-display__label">TIME</span>
+        <span id="score-value" class="score-display__value">0.0s</span>
+      </div>
+
+      <div id="start-overlay" class="overlay overlay--start" role="dialog" aria-labelledby="start-title">
+        <div class="overlay__panel">
+          <h1 id="start-title" class="overlay__title overlay__title--pulse">DINO RUNNER</h1>
+          <p class="overlay__subtitle">Press <kbd>Space</kbd>, <kbd>↑</kbd>, or click to jump</p>
+          <p class="overlay__hint">Press <kbd>Space</kbd> or click anywhere to start</p>
+        </div>
+      </div>
+
+      <div id="gameover-overlay" class="overlay overlay--gameover" role="dialog" aria-labelledby="gameover-title" hidden>
+        <div class="overlay__panel">
+          <h2 id="gameover-title" class="overlay__title">GAME OVER</h2>
+          <p class="overlay__score">
+            You survived <strong id="final-score">0.0s</strong>
+          </p>
+          <button id="restart-btn" type="button" class="neon-btn">Play Again</button>
+          <p class="overlay__hint">Or press <kbd>Space</kbd> / <kbd>Enter</kbd> / click</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="file-setup-overlay" class="overlay overlay--start" hidden>
+      <div class="overlay__panel">
+        <h1 class="overlay__title">Open via a local server</h1>
+        <p class="overlay__subtitle">
+          Browsers block JavaScript modules on <code>file://</code> pages, so the game cannot start from a double-clicked HTML file alone.
+        </p>
+        <p class="overlay__hint">
+          In this folder, run:<br />
+          <kbd>npm install</kbd><br />
+          <kbd>npm run start</kbd><br />
+          Then open <strong>http://localhost:5173</strong>
+        </p>
+        <p class="overlay__hint">Or press <kbd>F5</kbd> in VS Code / Cursor (Workshop App launch config).</p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        function showFileSetupError() {
+          var el = document.getElementById("file-setup-overlay");
+          if (el) el.hidden = false;
+        }
+
+        if (location.protocol === "file:") {
+          var bundle = document.createElement("script");
+          bundle.src = "./js/game.bundle.js";
+          bundle.onerror = showFileSetupError;
+          document.body.appendChild(bundle);
+        } else {
+          var mod = document.createElement("script");
+          mod.type = "module";
+          mod.src = "./js/main.js";
+          document.body.appendChild(mod);
+        }
+      })();
+    </script>
+  </body>
+</html>
